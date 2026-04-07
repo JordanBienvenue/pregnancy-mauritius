@@ -9,21 +9,11 @@ const preview: Preview = {
         date: /Date$/i,
       },
     },
-    a11y: {
-      test: "todo",
-    },
     nextjs: {
       appDirectory: true,
     },
     layout: "centered",
   },
-  decorators: [
-    (Story) => (
-      <div className="font-sans">
-        <Story />
-      </div>
-    ),
-  ],
 };
 
 export default preview;
