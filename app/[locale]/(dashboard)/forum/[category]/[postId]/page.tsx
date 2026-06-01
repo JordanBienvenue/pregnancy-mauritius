@@ -2,6 +2,7 @@
 
 import { use, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { motion } from "framer-motion";
@@ -9,20 +10,23 @@ import {
   ArrowLeft,
   Clock,
   MessageSquare,
-  Eye,
   Heart,
   Share2,
   Flag,
   Send,
   Pin,
   Loader2,
+  Pencil,
+  Trash2,
+  X,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedSection } from "@/components/shared/animated-section";
 
@@ -51,6 +55,7 @@ interface ForumPostData {
   reply_count: number;
   like_count: number;
   created_at: string;
+  edited_at: string | null;
   profiles: { full_name: string } | null;
 }
 
@@ -62,6 +67,7 @@ interface ForumReply {
   is_anonymous: boolean;
   like_count: number;
   created_at: string;
+  edited_at: string | null;
   profiles: { full_name: string } | null;
 }
 
@@ -86,6 +92,7 @@ export default function ForumThreadPage({
   const { category, postId } = use(params);
   const t = useTranslations("forum");
   const locale = useLocale();
+  const router = useRouter();
 
   const [post, setPost] = useState<ForumPostData | null>(null);
   const [replies, setReplies] = useState<ForumReply[]>([]);
@@ -96,6 +103,39 @@ export default function ForumThreadPage({
   const [userId, setUserId] = useState<string | null>(null);
   const [hasLiked, setHasLiked] = useState(false);
   const [optimisticLikeCount, setOptimisticLikeCount] = useState(0);
+  const [likedReplyIds, setLikedReplyIds] = useState<Set<string>>(new Set());
+
+  // Author edit/delete state
+  const [editingPost, setEditingPost] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [savingPost, setSavingPost] = useState(false);
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+  const [editReplyContent, setEditReplyContent] = useState("");
+  const [savingReply, setSavingReply] = useState(false);
+
+  // Which reply ids the current user has liked (refreshed alongside replies).
+  const refreshLikedReplies = useCallback(async (replyList: ForumReply[]) => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user || replyList.length === 0) {
+      setLikedReplyIds(new Set());
+      return;
+    }
+    const { data } = await supabase
+      .from("forum_reply_likes")
+      .select("reply_id")
+      .eq("user_id", user.id)
+      .in(
+        "reply_id",
+        replyList.map((r) => r.id)
+      );
+    setLikedReplyIds(
+      new Set((data ?? []).map((d: { reply_id: string }) => d.reply_id))
+    );
+  }, []);
 
   const fetchPost = useCallback(async () => {
     const supabase = createClient();
@@ -122,6 +162,7 @@ export default function ForumThreadPage({
 
     if (repliesResult.data) {
       setReplies(repliesResult.data as ForumReply[]);
+      refreshLikedReplies(repliesResult.data as ForumReply[]);
     }
 
     const currentUserId = userResult.data?.user?.id ?? null;
@@ -139,7 +180,7 @@ export default function ForumThreadPage({
     }
 
     setLoading(false);
-  }, [postId]);
+  }, [postId, refreshLikedReplies]);
 
   useEffect(() => {
     fetchPost();
@@ -161,13 +202,14 @@ export default function ForumThreadPage({
     ]);
     if (repliesResult.data) {
       setReplies(repliesResult.data as ForumReply[]);
+      refreshLikedReplies(repliesResult.data as ForumReply[]);
     }
     if (postResult.data) {
       const postData = postResult.data as ForumPostData;
       setPost(postData);
       setOptimisticLikeCount(postData.like_count ?? 0);
     }
-  }, [postId]);
+  }, [postId, refreshLikedReplies]);
 
   // Subscribe to realtime changes so replies from other users appear live.
   useEffect(() => {
@@ -219,14 +261,7 @@ export default function ForumThreadPage({
     });
 
     if (!error) {
-      // Update reply_count on the post
-      if (post) {
-        await supabase
-          .from("forum_posts")
-          .update({ reply_count: (post.reply_count ?? 0) + 1 })
-          .eq("id", postId);
-      }
-
+      // reply_count is maintained by the sync_forum_post_reply_count trigger.
       setReplyContent("");
       setReplyAnonymous(false);
 
@@ -235,6 +270,101 @@ export default function ForumThreadPage({
     }
 
     setSubmittingReply(false);
+  };
+
+  const handleReplyLike = async (reply: ForumReply) => {
+    if (!userId) return;
+    const supabase = createClient();
+    const liked = likedReplyIds.has(reply.id);
+
+    // Optimistic toggle; like_count is maintained by a DB trigger and
+    // reconciled live via the forum_replies realtime subscription.
+    setLikedReplyIds((prev) => {
+      const next = new Set(prev);
+      if (liked) next.delete(reply.id);
+      else next.add(reply.id);
+      return next;
+    });
+    setReplies((prev) =>
+      prev.map((r) =>
+        r.id === reply.id
+          ? { ...r, like_count: Math.max(0, (r.like_count ?? 0) + (liked ? -1 : 1)) }
+          : r
+      )
+    );
+
+    if (liked) {
+      await supabase
+        .from("forum_reply_likes")
+        .delete()
+        .eq("reply_id", reply.id)
+        .eq("user_id", userId);
+    } else {
+      await supabase
+        .from("forum_reply_likes")
+        .insert({ reply_id: reply.id, user_id: userId });
+    }
+  };
+
+  const startEditPost = () => {
+    if (!post) return;
+    setEditTitle(post.title);
+    setEditContent(post.content);
+    setEditingPost(true);
+  };
+
+  const handlePostEditSave = async () => {
+    if (!post || !editTitle.trim() || !editContent.trim()) return;
+    setSavingPost(true);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("forum_posts")
+      .update({
+        title: editTitle.trim(),
+        content: editContent.trim(),
+        edited_at: new Date().toISOString(),
+      })
+      .eq("id", postId);
+    if (!error) {
+      setEditingPost(false);
+      await refreshReplies(); // also refetches the post
+    }
+    setSavingPost(false);
+  };
+
+  const handlePostDelete = async () => {
+    if (!post || userId !== post.user_id) return;
+    if (!window.confirm(t("deleteConfirm"))) return;
+    const supabase = createClient();
+    const { error } = await supabase.from("forum_posts").delete().eq("id", postId);
+    if (!error) router.push(`/${locale}/forum/${category}`);
+  };
+
+  const handleReplyEditSave = async (reply: ForumReply) => {
+    if (!editReplyContent.trim()) return;
+    setSavingReply(true);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("forum_replies")
+      .update({
+        content: editReplyContent.trim(),
+        edited_at: new Date().toISOString(),
+      })
+      .eq("id", reply.id);
+    if (!error) {
+      setEditingReplyId(null);
+      await refreshReplies();
+    }
+    setSavingReply(false);
+  };
+
+  const handleReplyDelete = async (reply: ForumReply) => {
+    if (userId !== reply.user_id) return;
+    if (!window.confirm(t("deleteConfirm"))) return;
+    const supabase = createClient();
+    // reply_count is maintained by the sync_forum_post_reply_count trigger.
+    await supabase.from("forum_replies").delete().eq("id", reply.id);
+    await refreshReplies();
   };
 
   const handleLike = async () => {
@@ -403,19 +533,68 @@ export default function ForumThreadPage({
                 </div>
               </div>
 
-              {/* Post title */}
-              <div className="px-5 pt-4">
-                <h1 className="text-xl font-bold sm:text-2xl">
-                  {post.title}
-                </h1>
-              </div>
-
-              {/* Post content */}
-              <div className="px-5 pt-3 pb-4">
-                <div className="prose prose-sm max-w-none text-foreground/90 whitespace-pre-line leading-relaxed">
-                  {post.content}
+              {editingPost ? (
+                /* Edit mode */
+                <div className="px-5 pt-4 pb-4 space-y-3">
+                  <Input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    maxLength={200}
+                    aria-label={t("postTitle")}
+                  />
+                  <Textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="min-h-32 resize-none"
+                    aria-label={t("postContent")}
+                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      className="gap-1.5 bg-primary hover:bg-brand-pink-dark"
+                      onClick={handlePostEditSave}
+                      disabled={savingPost || !editTitle.trim() || !editContent.trim()}
+                    >
+                      {savingPost ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                      {t("save")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-1.5"
+                      onClick={() => setEditingPost(false)}
+                    >
+                      <X className="h-4 w-4" />
+                      {t("cancel")}
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  {/* Post title */}
+                  <div className="px-5 pt-4">
+                    <h1 className="text-xl font-bold sm:text-2xl">
+                      {post.title}
+                    </h1>
+                  </div>
+
+                  {/* Post content */}
+                  <div className="px-5 pt-3 pb-4">
+                    <div className="prose prose-sm max-w-none text-foreground/90 whitespace-pre-line leading-relaxed">
+                      {post.content}
+                    </div>
+                    {post.edited_at && (
+                      <span className="text-xs text-muted-foreground italic">
+                        ({t("edited")})
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* Post actions */}
               <div className="flex items-center gap-1 px-5 pb-4">
@@ -452,6 +631,30 @@ export default function ForumThreadPage({
                   <Flag className="h-4 w-4" />
                   <span className="text-xs">{t("report")}</span>
                 </Button>
+                {userId === post.user_id && !editingPost && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      data-testid="post-edit-button"
+                      className="gap-1.5 text-muted-foreground"
+                      onClick={startEditPost}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      <span className="text-xs">{t("edit")}</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      data-testid="post-delete-button"
+                      className="gap-1.5 text-muted-foreground hover:text-destructive"
+                      onClick={handlePostDelete}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="text-xs">{t("delete")}</span>
+                    </Button>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -499,20 +702,99 @@ export default function ForumThreadPage({
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {timeAgo(reply.created_at)}
+                          {reply.edited_at ? ` · ${t("edited")}` : ""}
                         </span>
                       </div>
-                      <p className="mt-2 text-sm text-foreground/90 leading-relaxed">
-                        {reply.content}
-                      </p>
-                      <div className="mt-2">
+
+                      {editingReplyId === reply.id ? (
+                        <div className="mt-2 space-y-2">
+                          <Textarea
+                            value={editReplyContent}
+                            onChange={(e) => setEditReplyContent(e.target.value)}
+                            className="min-h-20 resize-none"
+                            aria-label={t("writeReply")}
+                          />
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              className="gap-1.5 h-7 bg-primary hover:bg-brand-pink-dark"
+                              onClick={() => handleReplyEditSave(reply)}
+                              disabled={savingReply || !editReplyContent.trim()}
+                            >
+                              {savingReply ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Check className="h-3.5 w-3.5" />
+                              )}
+                              {t("save")}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="gap-1.5 h-7"
+                              onClick={() => setEditingReplyId(null)}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                              {t("cancel")}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-sm text-foreground/90 leading-relaxed whitespace-pre-line">
+                          {reply.content}
+                        </p>
+                      )}
+
+                      <div className="mt-2 flex items-center gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="gap-1.5 text-muted-foreground h-7 px-2"
+                          data-testid="reply-like-button"
+                          aria-pressed={likedReplyIds.has(reply.id)}
+                          className={`gap-1.5 h-7 px-2 ${
+                            likedReplyIds.has(reply.id)
+                              ? "text-pink-500"
+                              : "text-muted-foreground"
+                          }`}
+                          onClick={() => handleReplyLike(reply)}
                         >
-                          <Heart className="h-3.5 w-3.5" />
-                          <span className="text-xs">{reply.like_count ?? 0}</span>
+                          <Heart
+                            className={`h-3.5 w-3.5 ${
+                              likedReplyIds.has(reply.id) ? "fill-pink-500" : ""
+                            }`}
+                          />
+                          <span className="text-xs" data-testid="reply-like-count">
+                            {reply.like_count ?? 0}
+                          </span>
                         </Button>
+                        {userId === reply.user_id &&
+                          editingReplyId !== reply.id && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                data-testid="reply-edit-button"
+                                className="gap-1.5 h-7 px-2 text-muted-foreground"
+                                onClick={() => {
+                                  setEditingReplyId(reply.id);
+                                  setEditReplyContent(reply.content);
+                                }}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                <span className="text-xs">{t("edit")}</span>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                data-testid="reply-delete-button"
+                                className="gap-1.5 h-7 px-2 text-muted-foreground hover:text-destructive"
+                                onClick={() => handleReplyDelete(reply)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                <span className="text-xs">{t("delete")}</span>
+                              </Button>
+                            </>
+                          )}
                       </div>
                     </div>
                   </div>
