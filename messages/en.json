@@ -239,6 +239,8 @@
     "cancel": "Cancel",
     "edited": "edited",
     "deleteConfirm": "Are you sure you want to delete this? This cannot be undone.",
+    "searchPlaceholder": "Search discussions...",
+    "loadMore": "Load more",
     "writeReply": "Write your reply",
     "postAnonymously": "Post anonymously",
     "replyButton": "Reply",

@@ -239,6 +239,8 @@
     "cancel": "Annuler",
     "edited": "modifie",
     "deleteConfirm": "Voulez-vous vraiment supprimer ceci ? Cette action est irreversible.",
+    "searchPlaceholder": "Rechercher des discussions...",
+    "loadMore": "Voir plus",
     "writeReply": "Ecrivez votre reponse",
     "postAnonymously": "Poster anonymement",
     "replyButton": "Repondre",

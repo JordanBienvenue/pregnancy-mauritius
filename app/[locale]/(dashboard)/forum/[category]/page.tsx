@@ -19,12 +19,17 @@ import {
   ArrowLeft,
   Filter,
   Shield,
+  Search,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const PAGE_SIZE = 20;
 import {
   AnimatedSection,
   StaggerContainer,
@@ -111,6 +116,9 @@ export default function ForumCategoryPage({
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const [hasMore, setHasMore] = useState(false);
 
   const catKey = category as CategoryKey;
   const config = categoryConfig[catKey] || categoryConfig.general;
@@ -125,20 +133,30 @@ export default function ForumCategoryPage({
       .select("*, profiles(full_name)")
       .eq("category", category);
 
+    const q = searchQuery.trim();
+    if (q) {
+      // Search title + content (escape PostgREST `or` separators).
+      const safe = q.replace(/[(),]/g, " ");
+      query = query.or(`title.ilike.%${safe}%,content.ilike.%${safe}%`);
+    }
+
     if (sortBy === "newest") {
       query = query.order("created_at", { ascending: false });
     } else {
       query = query.order("reply_count", { ascending: false });
     }
 
+    query = query.range(0, limit - 1);
+
     const { data } = await query;
 
     if (data) {
       setPosts(data as ForumPost[]);
+      setHasMore(data.length === limit);
     }
 
     setLoading(false);
-  }, [category, sortBy]);
+  }, [category, sortBy, searchQuery, limit]);
 
   useEffect(() => {
     fetchPosts();
@@ -207,6 +225,21 @@ export default function ForumCategoryPage({
       </section>
 
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setLimit(PAGE_SIZE);
+            }}
+            placeholder={t("searchPlaceholder")}
+            className="pl-9"
+            aria-label={t("searchPlaceholder")}
+          />
+        </div>
+
         {/* Controls */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
@@ -239,8 +272,8 @@ export default function ForumCategoryPage({
           </Button>
         </div>
 
-        {/* Loading skeleton */}
-        {loading && (
+        {/* Loading skeleton (initial load only) */}
+        {loading && posts.length === 0 && (
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <Card key={i} className="border-border/50">
@@ -329,6 +362,19 @@ export default function ForumCategoryPage({
                 </Link>
               </motion.div>
             ))}
+          </div>
+        )}
+
+        {/* Load more */}
+        {!loading && hasMore && (
+          <div className="mt-6 flex justify-center">
+            <Button
+              variant="outline"
+              data-testid="load-more"
+              onClick={() => setLimit((l) => l + PAGE_SIZE)}
+            >
+              {t("loadMore")}
+            </Button>
           </div>
         )}
       </div>
