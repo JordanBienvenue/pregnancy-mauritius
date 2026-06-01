@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { SITE } from "@/lib/constants/site";
+import { JsonLd } from "@/components/shared/json-ld";
+import { breadcrumbSchema } from "@/lib/structured-data";
 
 const titles: Record<string, string> = {
   en: "Blog — Pregnancy Advice for Mauritian Mothers",
@@ -13,15 +16,25 @@ const descriptions: Record<string, string> = {
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://manmanmoris.mu";
   return {
     title: titles[locale] || titles.en,
     description: descriptions[locale] || descriptions.en,
     keywords: ["blog grossesse Maurice", "conseils grossesse Maurice", "pregnancy blog Mauritius", "postpartum advice Mauritius"],
-    alternates: { canonical: `${baseUrl}/${locale}/blog`, languages: { en: `${baseUrl}/en/blog`, fr: `${baseUrl}/fr/blog`, "x-default": `${baseUrl}/cr/blog` } },
+    alternates: { canonical: `${SITE.url}/${locale}/blog`, languages: { en: `${SITE.url}/en/blog`, fr: `${SITE.url}/fr/blog`, "x-default": `${SITE.url}/cr/blog` } },
   };
 }
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+export default async function Layout({ children, params }: { children: React.ReactNode; params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  return (
+    <>
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: "Home", href: `/${locale}` },
+          { name: "Blog", href: `/${locale}/blog` },
+        ])}
+      />
+      {children}
+    </>
+  );
 }

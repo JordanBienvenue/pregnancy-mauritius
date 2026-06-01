@@ -17,6 +17,10 @@ export type SponsorData = {
   cta: string;
   href: string;
   logoInitial: string;
+  /** Optional image or GIF URL for the ad creative */
+  imageSrc?: string;
+  /** Alt text for the ad image */
+  imageAlt?: string;
 };
 
 type BaseAdProps = {
@@ -31,10 +35,14 @@ type BaseAdProps = {
 
 function SponsorLogo({
   initial,
+  imageSrc,
+  imageAlt,
   size = "md",
   className,
 }: {
   initial: string;
+  imageSrc?: string;
+  imageAlt?: string;
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
@@ -50,12 +58,16 @@ function SponsorLogo({
       whileHover={{ scale: 1.05, rotate: 2 }}
       transition={{ type: "spring", stiffness: 400, damping: 17 }}
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 font-bold text-primary ring-1 ring-primary/10",
+        "flex shrink-0 items-center justify-center rounded-xl overflow-hidden bg-gradient-to-br from-primary/10 to-secondary/10 font-bold text-primary ring-1 ring-primary/10",
         sizeClasses[size],
         className
       )}
     >
-      {initial}
+      {imageSrc ? (
+        <img src={imageSrc} alt={imageAlt || ""} className="h-full w-full object-cover" />
+      ) : (
+        initial
+      )}
     </motion.div>
   );
 }
@@ -77,7 +89,7 @@ export function LeaderboardBanner({ sponsor, className }: BaseAdProps) {
     >
       <div className="flex h-[90px] items-center justify-between px-5">
         <div className="flex items-center gap-4">
-          <SponsorLogo initial={sponsor.logoInitial} size="md" />
+          <SponsorLogo initial={sponsor.logoInitial} imageSrc={sponsor.imageSrc} imageAlt={sponsor.imageAlt} size="md" />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <p className="truncate text-sm font-semibold text-foreground">
@@ -198,7 +210,7 @@ export function StickyBottomBar({ sponsor, onClose, className }: BaseAdProps) {
           )}
         >
           <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
-            <SponsorLogo initial={sponsor.logoInitial} size="sm" />
+            <SponsorLogo initial={sponsor.logoInitial} imageSrc={sponsor.imageSrc} imageAlt={sponsor.imageAlt} size="sm" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <p className="truncate text-sm font-medium text-foreground">
@@ -347,7 +359,7 @@ export function InterstitialAd({
                     Sponsored
                   </Badge>
 
-                  <SponsorLogo initial={sponsor.logoInitial} size="xl" />
+                  <SponsorLogo initial={sponsor.logoInitial} imageSrc={sponsor.imageSrc} imageAlt={sponsor.imageAlt} size="xl" />
 
                   <motion.h2
                     initial={{ opacity: 0, y: 10 }}
@@ -405,13 +417,17 @@ export function NativeInFeedAd({ sponsor, className }: BaseAdProps) {
     >
       <Card className="overflow-hidden border-border/50 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
         <CardContent className="p-0">
-          {/* Simulated content image area */}
+          {/* Ad creative area */}
           <div className="relative h-40 bg-gradient-to-br from-primary/10 via-brand-pink-light/40 to-secondary/10 sm:h-48">
-            <SponsorLogo
-              initial={sponsor.logoInitial}
-              size="lg"
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30"
-            />
+            {sponsor.imageSrc ? (
+              <img src={sponsor.imageSrc} alt={sponsor.imageAlt || ""} className="h-full w-full object-cover" />
+            ) : (
+              <SponsorLogo
+                initial={sponsor.logoInitial}
+                size="lg"
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30"
+              />
+            )}
             <Badge
               variant="outline"
               className="absolute left-3 top-3 border-white/30 bg-white/80 text-[9px] uppercase tracking-widest text-muted-foreground backdrop-blur-sm"
@@ -422,7 +438,7 @@ export function NativeInFeedAd({ sponsor, className }: BaseAdProps) {
 
           <div className="p-5">
             <div className="flex items-start gap-3">
-              <SponsorLogo initial={sponsor.logoInitial} size="sm" />
+              <SponsorLogo initial={sponsor.logoInitial} imageSrc={sponsor.imageSrc} imageAlt={sponsor.imageAlt} size="sm" />
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">
                   {sponsor.name} &middot; Promoted
@@ -466,7 +482,11 @@ export function SidebarRectangle({ sponsor, className }: BaseAdProps) {
         <CardContent className="p-0">
           {/* Visual area */}
           <div className="relative flex h-[140px] items-center justify-center bg-gradient-to-br from-brand-pink-light/50 via-white to-brand-teal-light/50">
-            <SponsorLogo initial={sponsor.logoInitial} size="lg" />
+            {sponsor.imageSrc ? (
+              <img src={sponsor.imageSrc} alt={sponsor.imageAlt || ""} className="h-full w-full object-cover" />
+            ) : (
+              <SponsorLogo initial={sponsor.logoInitial} size="lg" />
+            )}
             <Badge
               variant="outline"
               className="absolute right-2 top-2 border-primary/15 bg-white/80 text-[8px] uppercase tracking-widest text-muted-foreground backdrop-blur-sm"
@@ -525,7 +545,7 @@ export function SponsoredContentCard({ sponsor, className }: BaseAdProps) {
                 <Sparkles className="mr-1 h-3 w-3" />
                 Sponsored Content
               </Badge>
-              <SponsorLogo initial={sponsor.logoInitial} size="md" />
+              <SponsorLogo initial={sponsor.logoInitial} imageSrc={sponsor.imageSrc} imageAlt={sponsor.imageAlt} size="md" />
             </div>
 
             <h3 className="mt-4 text-lg font-bold leading-snug text-foreground transition-colors group-hover:text-primary sm:text-xl">
@@ -535,6 +555,8 @@ export function SponsoredContentCard({ sponsor, className }: BaseAdProps) {
             <div className="mt-3 flex items-center gap-3">
               <SponsorLogo
                 initial={sponsor.logoInitial}
+                imageSrc={sponsor.imageSrc}
+                imageAlt={sponsor.imageAlt}
                 size="sm"
                 className="ring-0"
               />
@@ -592,8 +614,12 @@ export function CategorySponsorBadge({
       >
         <span className="text-muted-foreground">{categoryName} sponsored by</span>
         <span className="flex items-center gap-1.5 font-semibold text-foreground">
-          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 text-[10px] font-bold text-primary">
-            {sponsor.logoInitial}
+          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 text-[10px] font-bold text-primary overflow-hidden">
+            {sponsor.imageSrc ? (
+              <img src={sponsor.imageSrc} alt={sponsor.imageAlt || ""} className="h-full w-full object-cover" />
+            ) : (
+              sponsor.logoInitial
+            )}
           </span>
           {sponsor.name}
         </span>

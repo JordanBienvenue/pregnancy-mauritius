@@ -121,7 +121,7 @@ export default function PostpartumDashboard() {
 
       {/* Summary Cards Row */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="-mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="-mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {/* PPD Score Summary */}
           <AnimatedSection delay={0.1}>
             <Card className="border-border/50 transition-shadow hover:shadow-md">
@@ -182,8 +182,8 @@ export default function PostpartumDashboard() {
       </div>
 
       {/* Feature Cards Grid */}
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
-        <StaggerContainer className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+        <StaggerContainer className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {dashboardCards.map((card) => {
             const Icon = card.icon;
             return (
@@ -192,19 +192,17 @@ export default function PostpartumDashboard() {
                   <Card
                     className={`group h-full border-border/50 transition-all duration-300 ${card.borderHover} hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1`}
                   >
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between">
-                        <motion.div
-                          whileHover={{ scale: 1.1, rotate: 5 }}
-                          className={`inline-flex h-12 w-12 items-center justify-center rounded-xl ${card.bgColor}`}
-                        >
-                          <Icon className={`h-6 w-6 ${card.color}`} />
-                        </motion.div>
-                      </div>
-                      <CardTitle className="mt-3 text-base font-semibold">
+                    <CardHeader className="pb-1">
+                      <motion.div
+                        whileHover={{ scale: 1.1, rotate: 5 }}
+                        className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${card.bgColor}`}
+                      >
+                        <Icon className={`h-5 w-5 ${card.color}`} />
+                      </motion.div>
+                      <CardTitle className="mt-2 text-base font-semibold">
                         {card.title}
                       </CardTitle>
-                      <CardDescription className="text-sm leading-relaxed">
+                      <CardDescription className="text-sm">
                         {card.description}
                       </CardDescription>
                     </CardHeader>

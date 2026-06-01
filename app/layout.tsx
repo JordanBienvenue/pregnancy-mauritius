@@ -1,56 +1,39 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { SkipLink } from "@/components/shared/skip-link";
-import { MotionProvider } from "@/components/shared/reduced-motion";
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-inter",
-});
+import { SITE } from "@/lib/constants/site";
 
 export const metadata: Metadata = {
   title: {
-    default: "Manman Moris — Pregnancy & Postpartum Support for Mauritius",
-    template: "%s | Manman Moris",
+    default: `${SITE.name} — Pregnancy & Postpartum Support for Mauritius`,
+    template: `%s | ${SITE.name}`,
   },
   description:
     "The first all-in-one pregnancy and postpartum platform for Mauritius. Healthcare directory, pregnancy tracker, community forum, and more — in English, French, and Kreol.",
   keywords: [
-    "grossesse Maurice",
-    "pregnancy Mauritius",
-    "gynecologue Maurice",
-    "maternite Maurice",
-    "postpartum Mauritius",
-    "Manman Moris",
-    "enceinte Maurice",
-    "sage-femme Maurice",
-    "accouchement Maurice",
+    ...SITE.keywords.fr,
+    ...SITE.keywords.en,
+    SITE.name,
   ],
-  authors: [{ name: "Manman Moris" }],
-  creator: "Manman Moris",
-  publisher: "Manman Moris",
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://manmanmoris.mu"
-  ),
+  authors: [{ name: SITE.name }],
+  creator: SITE.name,
+  publisher: SITE.name,
+  metadataBase: new URL(SITE.url),
   openGraph: {
     type: "website",
-    siteName: "Manman Moris",
+    siteName: SITE.name,
     locale: "fr_MU",
     alternateLocale: ["en_MU", "fr_FR"],
     images: [
       {
-        url: "/og-image.png",
+        url: SITE.ogImage,
         width: 1200,
         height: 630,
-        alt: "Manman Moris — Pregnancy & Postpartum Support for Mauritius",
+        alt: `${SITE.name} — Pregnancy & Postpartum Support for Mauritius`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Manman Moris — Pregnancy Support for Mauritius",
+    title: `${SITE.name} — Pregnancy Support for Mauritius`,
     description:
       "The first pregnancy and postpartum platform built for Mauritius. In English, French, and Kreol.",
   },
@@ -65,9 +48,6 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  verification: {
-    google: "GOOGLE_SITE_VERIFICATION_TOKEN",
-  },
 };
 
 export default function RootLayout({
@@ -75,12 +55,5 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html lang="mfe" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col font-sans">
-        <SkipLink />
-        <MotionProvider>{children}</MotionProvider>
-      </body>
-    </html>
-  );
+  return children;
 }

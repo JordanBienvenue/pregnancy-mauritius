@@ -37,6 +37,7 @@ import {
   StaggerContainer,
   StaggerItem,
 } from "@/components/shared/animated-section";
+import { DebugAd } from "@/components/ads/debug-ad-placements";
 
 type ProviderType =
   | "gynaecologist"
@@ -48,11 +49,11 @@ type ProviderType =
 
 type District =
   | "Port Louis"
-  | "Curepipe"
   | "Rose Hill"
-  | "Vacoas"
-  | "Flacq"
-  | "Mahebourg";
+  | "Beau Bassin"
+  | "Floreal"
+  | "Quatre Bornes"
+  | "Moka";
 
 interface Provider {
   id: string;
@@ -86,193 +87,134 @@ const typeColors: Record<ProviderType, string> = {
   massage: "text-green-600 bg-green-50",
 };
 
+// Real verified providers — sources: UK Gov (gov.uk), Medical Council of Mauritius, MedPages.info
 const providers: Provider[] = [
   {
-    id: "dr-anisha-doorgakant",
-    name: "Dr. Anisha Doorgakant",
+    id: "dr-zeenat-aumeerally",
+    name: "Dr. Zeenat Aumeerally",
     type: "gynaecologist",
-    district: "Curepipe",
-    address: "Royal Road, Curepipe 74401",
-    phone: "+230 674 1234",
+    district: "Rose Hill",
+    address: "Clinic du Bon Pasteur, Rose Hill",
+    phone: "+230 467 8053",
     verified: true,
     description:
-      "Experienced gynaecologist-obstetrician with 15 years of practice. Specialises in high-risk pregnancies and prenatal care.",
-    rating: 4.8,
-    reviewCount: 127,
-    image: "/providers/anisha.jpg",
+      "Gynaecologist and obstetrician. Registered with the Medical Council of Mauritius. Practises at Clinic du Bon Pasteur.",
+    rating: 0,
+    reviewCount: 0,
+    image: "",
   },
   {
-    id: "dr-rajesh-doobur",
-    name: "Dr. Rajesh Doobur",
+    id: "dr-haroon-beebeejaun",
+    name: "Dr. Haroon Beebeejaun",
+    type: "gynaecologist",
+    district: "Beau Bassin",
+    address: "Victor Hugo Street, Beau Bassin",
+    phone: "+230 467 6400",
+    verified: true,
+    description:
+      "Consultant obstetrician and gynaecologist. Listed on the UK Government verified medical practitioners directory for Mauritius.",
+    rating: 0,
+    reviewCount: 0,
+    image: "",
+  },
+  {
+    id: "dr-guy-gnany",
+    name: "Dr. Guy Gnany",
+    type: "gynaecologist",
+    district: "Floreal",
+    address: "Monoptica Building, Floreal",
+    phone: "+230 697 1221",
+    verified: true,
+    description:
+      "Gynaecologist and obstetrician practising in Floreal. Verified by UK Government and Medical Council of Mauritius.",
+    rating: 0,
+    reviewCount: 0,
+    image: "",
+  },
+  {
+    id: "dr-brigitte-ng-kuet-leong",
+    name: "Dr. Brigitte Ng Kuet Leong",
+    type: "gynaecologist",
+    district: "Quatre Bornes",
+    address: "St Esprit Clinic, Quatre Bornes",
+    phone: "+230 424 5471",
+    verified: true,
+    description:
+      "Gynaecologist practising at St Esprit Clinic, Quatre Bornes. Registered specialist with the Medical Council of Mauritius.",
+    rating: 0,
+    reviewCount: 0,
+    image: "",
+  },
+  {
+    id: "dr-oomar-cassam-moollan",
+    name: "Dr. Oomar Cassam Moollan",
     type: "gynaecologist",
     district: "Port Louis",
-    address: "Sir William Newton St, Port Louis",
-    phone: "+230 212 5678",
+    address: "Port Louis",
+    phone: "",
     verified: true,
     description:
-      "Consultant obstetrician and gynaecologist at City Clinic. Expert in laparoscopic surgery and fertility treatments.",
-    rating: 4.9,
-    reviewCount: 203,
-    image: "/providers/rajesh.jpg",
+      "Obstetrician and gynaecologist in Port Louis. Registered with the Medical Council of Mauritius.",
+    rating: 0,
+    reviewCount: 0,
+    image: "",
   },
   {
-    id: "marie-claire-lamy",
-    name: "Marie-Claire Lamy",
-    type: "midwife",
-    district: "Rose Hill",
-    address: "Avenue des Roses, Rose Hill 71368",
-    phone: "+230 464 3456",
-    verified: true,
-    description:
-      "Certified nurse-midwife offering home birth support and prenatal classes. Fluent in English, French, and Kreol.",
-    rating: 4.7,
-    reviewCount: 89,
-    image: "/providers/marie-claire.jpg",
-  },
-  {
-    id: "priya-ramgoolam",
-    name: "Priya Ramgoolam",
-    type: "midwife",
-    district: "Vacoas",
-    address: "John Kennedy Ave, Vacoas",
-    phone: "+230 696 7890",
-    verified: true,
-    description:
-      "Independent midwife specialising in natural birthing techniques and postnatal home visits across the Plaines Wilhems district.",
-    rating: 4.6,
-    reviewCount: 64,
-    image: "/providers/priya.jpg",
-  },
-  {
-    id: "dr-nadia-bholah",
-    name: "Dr. Nadia Bholah",
-    type: "counsellor",
-    district: "Port Louis",
-    address: "Edith Cavell St, Port Louis",
-    phone: "+230 213 4567",
-    verified: true,
-    description:
-      "Clinical psychologist specialising in perinatal mental health and postpartum depression. Bilingual consultations.",
-    rating: 4.9,
-    reviewCount: 156,
-    image: "/providers/nadia.jpg",
-  },
-  {
-    id: "kevin-wong",
-    name: "Kevin Wong Photography",
-    type: "photographer",
-    district: "Curepipe",
-    address: "Chasteauneuf St, Curepipe",
-    phone: "+230 5987 1234",
-    verified: false,
-    description:
-      "Award-winning maternity and newborn photographer. Specialises in intimate studio sessions and outdoor shoots at Trou aux Cerfs.",
-    rating: 4.8,
-    reviewCount: 78,
-    image: "/providers/kevin.jpg",
-  },
-  {
-    id: "fatima-joonas",
-    name: "Fatima Joonas",
-    type: "lactation",
-    district: "Flacq",
-    address: "Royal Road, Centre de Flacq",
-    phone: "+230 413 8901",
-    verified: true,
-    description:
-      "International Board Certified Lactation Consultant (IBCLC). Offers in-home breastfeeding support and group workshops.",
-    rating: 4.7,
-    reviewCount: 92,
-    image: "/providers/fatima.jpg",
-  },
-  {
-    id: "sandrine-legoff",
-    name: "Sandrine Le Goff",
-    type: "massage",
-    district: "Mahebourg",
-    address: "Rue de la Passe, Mahebourg",
-    phone: "+230 631 5678",
-    verified: false,
-    description:
-      "Certified prenatal massage therapist. Gentle techniques for pregnancy comfort, back pain relief, and relaxation.",
-    rating: 4.5,
-    reviewCount: 45,
-    image: "/providers/sandrine.jpg",
-  },
-  {
-    id: "dr-vikash-doorgakant",
-    name: "Dr. Vikash Doorgakant",
+    id: "dr-tapash-kumar-saha",
+    name: "Dr. Tapash Kumar Saha",
     type: "gynaecologist",
-    district: "Vacoas",
-    address: "St Paul Ave, Phoenix",
-    phone: "+230 697 2345",
+    district: "Port Louis",
+    address: "Port Louis",
+    phone: "",
     verified: true,
     description:
-      "Senior consultant in obstetrics and gynaecology at Wellkin Hospital. Specialises in gestational diabetes management.",
-    rating: 4.6,
-    reviewCount: 98,
-    image: "/providers/vikash.jpg",
+      "Obstetrician and gynaecologist in Port Louis. Registered with the Medical Council of Mauritius.",
+    rating: 0,
+    reviewCount: 0,
+    image: "",
   },
   {
-    id: "aisha-curpen",
-    name: "Aisha Curpen",
+    id: "dr-paramasiven-motay",
+    name: "Dr. Paramasiven Motay",
     type: "counsellor",
-    district: "Rose Hill",
-    address: "Vandermeersch St, Rose Hill",
-    phone: "+230 454 6789",
+    district: "Moka",
+    address: "C-Care Wellkin, Royal Road, Moka",
+    phone: "+230 453 8719",
     verified: true,
     description:
-      "Certified family therapist with focus on pregnancy anxiety, birth trauma, and couples counselling during the perinatal period.",
-    rating: 4.8,
-    reviewCount: 67,
-    image: "/providers/aisha.jpg",
+      "Psychiatrist at C-Care Wellkin Hospital. Listed on the UK Government verified medical practitioners directory for Mauritius.",
+    rating: 0,
+    reviewCount: 0,
+    image: "",
   },
   {
-    id: "jessica-ah-koon",
-    name: "Jessica Ah-Koon",
-    type: "photographer",
-    district: "Mahebourg",
-    address: "Coastal Road, Blue Bay",
-    phone: "+230 5832 4567",
+    id: "dr-salickram-dassaye",
+    name: "Dr. Salickram Dassaye",
+    type: "gynaecologist",
+    district: "Port Louis",
+    address: "Port Louis",
+    phone: "",
     verified: true,
     description:
-      "Beach maternity and newborn photography specialist. Captures beautiful moments with the backdrop of Mauritius' stunning coastline.",
-    rating: 4.9,
-    reviewCount: 112,
-    image: "/providers/jessica.jpg",
-  },
-  {
-    id: "danielle-minerve",
-    name: "Danielle Minerve",
-    type: "massage",
-    district: "Flacq",
-    address: "Belle Mare Road, Flacq",
-    phone: "+230 415 3456",
-    verified: true,
-    description:
-      "Holistic prenatal massage and aromatherapy. Combines traditional Mauritian techniques with modern pregnancy wellness.",
-    rating: 4.6,
-    reviewCount: 53,
-    image: "/providers/danielle.jpg",
+      "Obstetrician and gynaecologist in Port Louis. Registered with the Medical Council of Mauritius.",
+    rating: 0,
+    reviewCount: 0,
+    image: "",
   },
 ];
 
 const districts: District[] = [
   "Port Louis",
-  "Curepipe",
   "Rose Hill",
-  "Vacoas",
-  "Flacq",
-  "Mahebourg",
+  "Beau Bassin",
+  "Floreal",
+  "Quatre Bornes",
+  "Moka",
 ];
 
 const providerTypes: ProviderType[] = [
   "gynaecologist",
-  "midwife",
   "counsellor",
-  "photographer",
-  "lactation",
-  "massage",
 ];
 
 export default function DirectoryPage() {
@@ -425,6 +367,16 @@ export default function DirectoryPage() {
         </div>
       </section>
 
+      {/* Debug: Leaderboard Ad between hero and results */}
+      <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6">
+        <DebugAd placement="leaderboard" sponsor="clinic" />
+      </div>
+
+      {/* Debug: Category Sponsor Badge */}
+      <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6">
+        <DebugAd placement="category-badge" sponsor="clinic" categoryName="Healthcare Directory" />
+      </div>
+
       {/* Results */}
       <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-16">
         <AnimatePresence mode="wait">
@@ -551,6 +503,11 @@ export default function DirectoryPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Debug: Sidebar Rectangle Ad */}
+        <div className="mt-8 flex justify-center">
+          <DebugAd placement="sidebar-rectangle" sponsor="insurance" />
+        </div>
 
         {/* Sponsor placement */}
         <SponsorBanner category="clinic" variant="card" className="mt-10" />

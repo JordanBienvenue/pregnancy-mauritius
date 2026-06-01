@@ -1,24 +1,24 @@
 import type { Metadata } from "next";
+import { SITE } from "@/lib/constants/site";
 
 const titles: Record<string, string> = {
-  en: "Community Forum for Mauritian Mothers",
-  fr: "Forum Communautaire pour Mamans Mauriciennes",
-  cr: "Forum Kominote pou Mama Morisien",
+  en: "Community Forum",
+  fr: "Forum communautaire",
+  cr: "Forum kominote",
 };
 const descriptions: Record<string, string> = {
-  en: "Join the community forum for mothers in Mauritius. Share experiences, ask questions, and connect with other mums during pregnancy and postpartum.",
-  fr: "Rejoignez le forum communautaire pour les mamans a Maurice. Partagez vos experiences, posez des questions et connectez-vous avec d'autres mamans pendant la grossesse et le post-partum.",
-  cr: "Zwenn forum kominote pou mama dan Moris. Partaz ou lexperyans, poz kestion ek konekte avek lezot mama pandan grosses ek apre akousman.",
+  en: "Connect with other mothers in Mauritius. Share experiences, ask questions.",
+  fr: "Connectez-vous avec d'autres mamans a Maurice. Partagez vos experiences, posez des questions.",
+  cr: "Konekte avek lezot mama dan Moris. Partaz ou lexperyans, poz kestion.",
 };
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://manmanmoris.mu";
   return {
     title: titles[locale] || titles.en,
     description: descriptions[locale] || descriptions.en,
-    keywords: ["forum mamans Maurice", "communaute meres Maurice", "mothers forum Mauritius", "pregnancy community Mauritius"],
-    alternates: { canonical: `${baseUrl}/${locale}/forum`, languages: { en: `${baseUrl}/en/forum`, fr: `${baseUrl}/fr/forum`, "x-default": `${baseUrl}/cr/forum` } },
+    keywords: ["pregnancy forum", "community", "mothers Mauritius"],
+    alternates: { canonical: `${SITE.url}/${locale}/forum`, languages: { en: `${SITE.url}/en/forum`, fr: `${SITE.url}/fr/forum`, "x-default": `${SITE.url}/cr/forum` } },
   };
 }
 

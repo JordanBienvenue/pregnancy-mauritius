@@ -1,11 +1,21 @@
+import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
-import { Header } from "@/components/shared/header";
-import { Footer } from "@/components/shared/footer";
 import { JsonLd } from "@/components/shared/json-ld";
-import { websiteSchema, medicalWebPageSchema } from "@/lib/structured-data";
+import { websiteSchema, medicalWebPageSchema, organizationSchema } from "@/lib/structured-data";
+import { SITE } from "@/lib/constants/site";
+import { SkipLink } from "@/components/shared/skip-link";
+import { MotionProvider } from "@/components/shared/reduced-motion";
+import { PublicShell } from "@/components/shared/public-shell";
+import "../globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
+});
 
 const langMap: Record<string, string> = {
   en: "en",
@@ -20,12 +30,12 @@ type Props = {
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://manmanmoris.mu";
+  const baseUrl = SITE.url;
 
   const titles: Record<string, string> = {
-    en: "Manman Moris — Pregnancy & Postpartum Support for Mauritius",
-    fr: "Manman Moris — Grossesse et Post-partum a Maurice",
-    cr: "Manman Moris — Sipor Grosses ek Apre Akousman dan Moris",
+    en: `${SITE.name} — Pregnancy & Postpartum Support for Mauritius`,
+    fr: `${SITE.name} — Grossesse et Post-partum a Maurice`,
+    cr: `${SITE.name} — Sipor Grosses ek Apre Akousman dan Moris`,
   };
 
   const descriptions: Record<string, string> = {
@@ -62,21 +72,18 @@ export default async function LocaleLayout({ children, params }: Props) {
   const htmlLang = langMap[locale] || "mfe";
 
   return (
-    <>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `document.documentElement.lang="${htmlLang}"`,
-        }}
-      />
-      <JsonLd data={websiteSchema()} />
-      <JsonLd data={medicalWebPageSchema(locale)} />
-      <NextIntlClientProvider messages={messages}>
-        <Header />
-        <main id="main-content" className="flex-1" role="main">
-          {children}
-        </main>
-        <Footer />
-      </NextIntlClientProvider>
-    </>
+    <html lang={htmlLang} className={`${inter.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col font-sans">
+        <SkipLink />
+        <MotionProvider>
+          <JsonLd data={websiteSchema()} />
+          <JsonLd data={medicalWebPageSchema(locale)} />
+          <JsonLd data={organizationSchema()} />
+          <NextIntlClientProvider messages={messages}>
+            <PublicShell>{children}</PublicShell>
+          </NextIntlClientProvider>
+        </MotionProvider>
+      </body>
+    </html>
   );
 }

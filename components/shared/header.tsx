@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -18,11 +19,15 @@ import {
   Activity,
   Users,
   ShoppingBag,
+  LogOut,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { LanguageSwitcher } from "./language-switcher";
+import { createClient } from "@/lib/supabase/client";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 type DropdownItem = {
   href: string;
@@ -148,7 +153,41 @@ export function Header() {
   const t = useTranslations("nav");
   const tc = useTranslations("common");
   const locale = useLocale();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      if (data.user) {
+        supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", data.user.id)
+          .single()
+          .then(({ data: profile }) => {
+            const staffRoles = ["admin", "moderator", "editor"];
+            setIsAdmin(staffRoles.includes(profile?.role ?? ""));
+          });
+      }
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) setIsAdmin(false);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push(`/${locale}`);
+  };
+
+  const displayName = user?.user_metadata?.full_name ?? user?.email?.split("@")[0] ?? "";
 
   return (
     <motion.header
@@ -201,12 +240,32 @@ export function Header() {
         <div className="flex items-center gap-1.5">
           <LanguageSwitcher />
           <div className="hidden md:flex items-center gap-1.5">
-            <Button variant="ghost" size="sm" render={<Link href={`/${locale}/login`} />}>
-              {tc("login")}
-            </Button>
-            <Button size="sm" className="bg-primary hover:bg-brand-pink-dark" render={<Link href={`/${locale}/register`} />}>
-              {tc("register")}
-            </Button>
+            {user ? (
+              <>
+                {isAdmin && (
+                  <Button variant="ghost" size="sm" render={<Link href={`/${locale}/admin`} />}>
+                    Admin
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" render={<Link href={`/${locale}/profile`} />}>
+                  <User className="mr-1.5 h-4 w-4" />
+                  {displayName}
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  <LogOut className="mr-1.5 h-4 w-4" />
+                  {tc("logout")}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" render={<Link href={`/${locale}/login`} />}>
+                  {tc("login")}
+                </Button>
+                <Button size="sm" className="bg-primary hover:bg-brand-pink-dark" render={<Link href={`/${locale}/register`} />}>
+                  {tc("register")}
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile menu */}
@@ -288,21 +347,45 @@ export function Header() {
 
                 <Separator className="my-3" />
                 <div className="flex flex-col gap-2 px-1">
-                  <Button
-                    className="w-full"
-                    onClick={() => setMobileOpen(false)}
-                    render={<Link href={`/${locale}/register`} />}
-                  >
-                    {tc("register")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setMobileOpen(false)}
-                    render={<Link href={`/${locale}/login`} />}
-                  >
-                    {tc("login")}
-                  </Button>
+                  {user ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => setMobileOpen(false)}
+                        render={<Link href={`/${locale}/profile`} />}
+                      >
+                        <User className="mr-1.5 h-4 w-4" />
+                        {displayName}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => { setMobileOpen(false); handleLogout(); }}
+                      >
+                        <LogOut className="mr-1.5 h-4 w-4" />
+                        {tc("logout")}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        className="w-full"
+                        onClick={() => setMobileOpen(false)}
+                        render={<Link href={`/${locale}/register`} />}
+                      >
+                        {tc("register")}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => setMobileOpen(false)}
+                        render={<Link href={`/${locale}/login`} />}
+                      >
+                        {tc("login")}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </nav>
             </SheetContent>

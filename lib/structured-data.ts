@@ -3,13 +3,15 @@
  * Renders as <script type="application/ld+json"> in page heads.
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://manmanmoris.mu";
+import { SITE } from "@/lib/constants/site";
+
+const BASE_URL = SITE.url;
 
 export function websiteSchema() {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "Manman Moris",
+    name: SITE.name,
     alternateName: "Pregnancy Mauritius",
     url: BASE_URL,
     description:
@@ -25,7 +27,7 @@ export function websiteSchema() {
     },
     publisher: {
       "@type": "Organization",
-      name: "Manman Moris",
+      name: SITE.name,
       url: BASE_URL,
       logo: {
         "@type": "ImageObject",
@@ -43,7 +45,7 @@ export function medicalWebPageSchema(locale: string) {
   return {
     "@context": "https://schema.org",
     "@type": "MedicalWebPage",
-    name: "Manman Moris — Pregnancy & Postpartum Platform",
+    name: `${SITE.name} — Pregnancy & Postpartum Platform`,
     url: `${BASE_URL}/${locale}`,
     about: {
       "@type": "MedicalCondition",
@@ -136,7 +138,7 @@ export function articleSchema(article: {
     }),
     publisher: {
       "@type": "Organization",
-      name: "Manman Moris",
+      name: SITE.name,
       url: BASE_URL,
       logo: {
         "@type": "ImageObject",
@@ -187,7 +189,7 @@ export function pregnancyTrackerSchema(week: number, locale: string) {
   return {
     "@context": "https://schema.org",
     "@type": "MedicalWebPage",
-    name: `Pregnancy Week ${week} — Manman Moris`,
+    name: `Pregnancy Week ${week} — ${SITE.name}`,
     url: `${BASE_URL}/${locale}/tracker/${week}`,
     about: {
       "@type": "MedicalCondition",
@@ -207,5 +209,60 @@ export function pregnancyTrackerSchema(week: number, locale: string) {
       },
     },
     inLanguage: locale === "cr" ? "mfe" : locale,
+  };
+}
+
+export function organizationSchema() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: SITE.name,
+    legalName: SITE.legalName,
+    url: SITE.url,
+    email: SITE.email,
+    foundingDate: SITE.foundingDate,
+    address: {
+      "@type": "PostalAddress",
+      ...SITE.address,
+    },
+    sameAs: [SITE.socials.instagram, SITE.socials.facebook],
+  };
+}
+
+export function medicalClinicSchema(hospital: {
+  name: string;
+  address: string;
+  phone: string;
+  district: string;
+  hasNICU: boolean;
+  hasMaternityWard: boolean;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "MedicalClinic",
+    name: hospital.name,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: hospital.address,
+      addressLocality: hospital.district,
+      addressCountry: "MU",
+    },
+    telephone: hospital.phone,
+    medicalSpecialty: hospital.hasMaternityWard ? "Obstetrics" : undefined,
+  };
+}
+
+export function itemListSchema(
+  items: Array<{ name: string; url: string; position: number }>
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    itemListElement: items.map((item) => ({
+      "@type": "ListItem",
+      position: item.position,
+      name: item.name,
+      url: item.url,
+    })),
   };
 }

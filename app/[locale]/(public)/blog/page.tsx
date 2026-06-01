@@ -25,6 +25,7 @@ import {
   StaggerContainer,
   StaggerItem,
 } from "@/components/shared/animated-section";
+import { DebugAd } from "@/components/ads/debug-ad-placements";
 
 const categoryConfig: Record<
   string,
@@ -222,13 +223,23 @@ export default function BlogPage() {
           </Link>
         </AnimatedSection>
 
+        {/* Debug: Leaderboard Ad between featured and grid */}
+        <div className="mt-8">
+          <DebugAd placement="leaderboard" sponsor="pharmacy" />
+        </div>
+
         {/* Article Grid */}
         <StaggerContainer className="mt-8 grid gap-6 sm:grid-cols-2">
-          {others.map((article) => {
+          {others.map((article, index) => {
             const config = categoryConfig[article.category];
             const Icon = config.icon;
             return (
               <StaggerItem key={article.slug}>
+                {index === 2 && (
+                  <div className="mb-6">
+                    <DebugAd placement="native-feed" sponsor="nutrition" />
+                  </div>
+                )}
                 <Link href={`/${locale}/blog/${article.slug}`}>
                   <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
                     <Card className="group h-full border-border/50 overflow-hidden transition-all duration-300 hover:shadow-md">

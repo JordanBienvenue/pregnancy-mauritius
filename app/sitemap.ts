@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { createClient } from "@/lib/supabase/server";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://manmanmoris.mu";
 const locales = ["en", "fr", "cr"];
@@ -11,6 +12,7 @@ const publicRoutes = [
   "/rights",
   "/blog",
   "/donate",
+  "/forgot-password",
 ];
 
 const authRoutes = [
@@ -22,16 +24,22 @@ const authRoutes = [
   "/register",
 ];
 
-const blogSlugs = [
-  "gynecologue-maurice-comment-choisir",
-  "droits-maternite-maurice-2024",
-  "craving-grossesse-que-manger",
-  "premier-trimestre-guide-complet",
-  "allaitement-conseils-maurice",
+const forumCategories = [
+  "/forum/pregnancy",
+  "/forum/postpartum",
+  "/forum/solo-mothers",
+  "/forum/general",
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [];
+
+  // Fetch published blog posts from the database
+  const supabase = await createClient();
+  const { data: blogPosts } = await supabase
+    .from("blog_posts")
+    .select("slug, published_at")
+    .eq("is_published", true);
 
   // Public routes — high priority
   for (const route of publicRoutes) {
@@ -49,17 +57,37 @@ export default function sitemap(): MetadataRoute.Sitemap {
     });
   }
 
-  // Blog articles
-  for (const slug of blogSlugs) {
+  // Blog articles (dynamic from database)
+  if (blogPosts) {
+    for (const post of blogPosts) {
+      const languages: Record<string, string> = {};
+      for (const locale of locales) {
+        languages[locale] = `${BASE_URL}/${locale}/blog/${post.slug}`;
+      }
+
+      entries.push({
+        url: `${BASE_URL}/cr/blog/${post.slug}`,
+        lastModified: post.published_at
+          ? new Date(post.published_at)
+          : new Date(),
+        changeFrequency: "monthly",
+        priority: 0.7,
+        alternates: { languages },
+      });
+    }
+  }
+
+  // Forum category pages
+  for (const route of forumCategories) {
     const languages: Record<string, string> = {};
     for (const locale of locales) {
-      languages[locale] = `${BASE_URL}/${locale}/blog/${slug}`;
+      languages[locale] = `${BASE_URL}/${locale}${route}`;
     }
 
     entries.push({
-      url: `${BASE_URL}/cr/blog/${slug}`,
+      url: `${BASE_URL}/cr${route}`,
       lastModified: new Date(),
-      changeFrequency: "monthly",
+      changeFrequency: "weekly",
       priority: 0.7,
       alternates: { languages },
     });

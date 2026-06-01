@@ -78,6 +78,7 @@ export function Footer() {
               {[
                 { href: "/food-guide", label: t("foodGuide") },
                 { href: "/rights", label: t("rights") },
+                { href: "/contact", label: t("contact") },
               ].map((link) => (
                 <li key={link.href}>
                   <Link

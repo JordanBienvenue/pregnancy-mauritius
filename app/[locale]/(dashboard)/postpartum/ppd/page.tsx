@@ -157,7 +157,7 @@ function getOptionScore(
   optionIndex: number,
   reverseScored: boolean
 ): number {
-  return reverseScored ? optionIndex : optionIndex;
+  return reverseScored ? (3 - optionIndex) : optionIndex;
 }
 
 /* ─── Page Component ─────────────────────────────────────────────────── */

@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { SITE } from "@/lib/constants/site";
+import { JsonLd } from "@/components/shared/json-ld";
+import { breadcrumbSchema } from "@/lib/structured-data";
 
 const titles: Record<string, string> = {
   en: "Emergency Maternity Map — Nearest Maternity Ward in Mauritius",
@@ -13,15 +16,25 @@ const descriptions: Record<string, string> = {
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://manmanmoris.mu";
   return {
     title: titles[locale] || titles.en,
     description: descriptions[locale] || descriptions.en,
     keywords: ["urgence maternite Maurice", "hopital maternite Maurice", "SAMU Maurice", "emergency maternity Mauritius", "nearest hospital Mauritius"],
-    alternates: { canonical: `${baseUrl}/${locale}/emergency`, languages: { en: `${baseUrl}/en/emergency`, fr: `${baseUrl}/fr/emergency`, "x-default": `${baseUrl}/cr/emergency` } },
+    alternates: { canonical: `${SITE.url}/${locale}/emergency`, languages: { en: `${SITE.url}/en/emergency`, fr: `${SITE.url}/fr/emergency`, "x-default": `${SITE.url}/cr/emergency` } },
   };
 }
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+export default async function Layout({ children, params }: { children: React.ReactNode; params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  return (
+    <>
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: "Home", href: `/${locale}` },
+          { name: "Emergency", href: `/${locale}/emergency` },
+        ])}
+      />
+      {children}
+    </>
+  );
 }

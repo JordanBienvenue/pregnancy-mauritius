@@ -30,6 +30,7 @@ import {
   StaggerContainer,
   StaggerItem,
 } from "@/components/shared/animated-section";
+import { DebugAd } from "@/components/ads/debug-ad-placements";
 
 type SafetyStatus = "safe" | "caution" | "avoid";
 type FoodCategory =
@@ -537,6 +538,11 @@ export default function FoodGuidePage() {
         </div>
       </section>
 
+      {/* Debug: Leaderboard Ad between hero and content */}
+      <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6">
+        <DebugAd placement="leaderboard" sponsor="nutrition" />
+      </div>
+
       {/* Content */}
       <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-16">
         {/* Tabs */}
@@ -633,6 +639,11 @@ export default function FoodGuidePage() {
             ))}
           </Tabs>
         </AnimatedSection>
+
+        {/* Debug: Sponsored Content Card at bottom of food guide */}
+        <div className="mt-10">
+          <DebugAd placement="sponsored-card" sponsor="nutrition" />
+        </div>
       </section>
     </div>
   );

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { motion } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
 import {
   User,
   Mail,
@@ -31,21 +33,35 @@ import {
   StaggerItem,
 } from "@/components/shared/animated-section";
 
-// Dummy user data
-const dummyUser = {
-  name: "Priya Ramgoolam",
-  email: "priya.ramgoolam@email.com",
-  phone: "+230 5748 2391",
-  avatar: "",
-  initials: "PR",
-  dueDate: "2026-07-15",
-  currentWeek: 24,
-  trimester: 2,
-  joinedDate: "2026-01-10",
-  isSoloMother: false,
-  language: "en" as "en" | "fr" | "cr",
-  notifications: true,
+type UserProfile = {
+  name: string;
+  email: string;
+  phone: string;
+  initials: string;
+  dueDate: string;
+  currentWeek: number;
+  trimester: number;
+  joinedDate: string;
+  isSoloMother: boolean;
+  isPostpartum: boolean;
+  babyDob: string | null;
+  language: "en" | "fr" | "cr";
 };
+
+function calculatePregnancyWeek(dueDate: string): number {
+  const due = new Date(dueDate);
+  const lmp = new Date(due);
+  lmp.setDate(lmp.getDate() - 280);
+  const now = new Date();
+  const weeks = Math.floor((now.getTime() - lmp.getTime()) / (7 * 24 * 60 * 60 * 1000));
+  return Math.max(1, Math.min(40, weeks));
+}
+
+function getTrimester(week: number): number {
+  if (week <= 12) return 1;
+  if (week <= 27) return 2;
+  return 3;
+}
 
 const languageNames: Record<string, string> = {
   en: "English",
@@ -71,17 +87,140 @@ export default function ProfilePage() {
   const tn = useTranslations("nav");
   const tt = useTranslations("tracker");
   const locale = useLocale();
+  const router = useRouter();
 
-  const [selectedLang, setSelectedLang] = useState(dummyUser.language);
-  const [notificationsOn, setNotificationsOn] = useState(dummyUser.notifications);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedLang, setSelectedLang] = useState<"en" | "fr" | "cr">(locale as "en" | "fr" | "cr");
+  const [notificationsOn, setNotificationsOn] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", phone: "", dueDate: "" });
+  const [saving, setSaving] = useState(false);
 
-  const progress = Math.round((dummyUser.currentWeek / 40) * 100);
-  const weeksToGo = 40 - dummyUser.currentWeek;
-  const dueDateFormatted = new Date(dummyUser.dueDate).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  useEffect(() => {
+    const supabase = createClient();
+    async function fetchProfile() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+
+        if (error) {
+          console.error("Profile fetch error:", error);
+          // Fallback: build profile from auth user metadata
+          const p: UserProfile = {
+            name: user.user_metadata?.full_name || user.email?.split("@")[0] || "",
+            email: user.email || "",
+            phone: user.user_metadata?.phone || "",
+            initials: (user.user_metadata?.full_name || user.email || "U")
+              .split(/[\s@]/)[0]
+              .slice(0, 2)
+              .toUpperCase(),
+            dueDate: "",
+            currentWeek: 0,
+            trimester: 1,
+            joinedDate: user.created_at,
+            isSoloMother: false,
+            isPostpartum: false,
+            babyDob: null,
+            language: locale as "en" | "fr" | "cr",
+          };
+          setProfile(p);
+          setEditForm({ name: p.name, phone: p.phone, dueDate: p.dueDate });
+        } else if (data) {
+          const currentWeek = data.due_date ? calculatePregnancyWeek(data.due_date) : 0;
+          const p: UserProfile = {
+            name: data.full_name || user.user_metadata?.full_name || "",
+            email: user.email || "",
+            phone: data.phone || "",
+            initials: (data.full_name || "U")
+              .split(" ")
+              .map((n: string) => n[0])
+              .join("")
+              .toUpperCase()
+              .slice(0, 2),
+            dueDate: data.due_date || "",
+            currentWeek,
+            trimester: getTrimester(currentWeek),
+            joinedDate: data.created_at || user.created_at,
+            isSoloMother: data.is_solo_mother || false,
+            isPostpartum: data.is_postpartum || false,
+            babyDob: data.baby_dob || null,
+            language: (data.locale || locale) as "en" | "fr" | "cr",
+          };
+          setProfile(p);
+          setSelectedLang(p.language);
+          setEditForm({ name: p.name, phone: p.phone, dueDate: p.dueDate });
+        }
+      } catch (err) {
+        console.error("Profile fetch failed:", err);
+      }
+      setLoading(false);
+    }
+    fetchProfile();
+  }, [locale]);
+
+  const handleSaveProfile = async () => {
+    if (!profile) return;
+    setSaving(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase
+      .from("profiles")
+      .update({
+        full_name: editForm.name,
+        phone: editForm.phone,
+        due_date: editForm.dueDate || null,
+        locale: selectedLang,
+      })
+      .eq("id", user.id);
+
+    setProfile({ ...profile, name: editForm.name, phone: editForm.phone, dueDate: editForm.dueDate, language: selectedLang });
+    setIsEditing(false);
+    setSaving(false);
+
+    if (selectedLang !== locale) {
+      router.push(`/${selectedLang}/profile`);
+    }
+  };
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push(`/${locale}`);
+  };
+
+  if (loading || !profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary"
+        />
+      </div>
+    );
+  }
+
+  const progress = Math.round((profile.currentWeek / 40) * 100);
+  const weeksToGo = 40 - profile.currentWeek;
+  const dueDateFormatted = profile.dueDate
+    ? new Date(profile.dueDate).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "—";
 
   return (
     <div className="min-h-screen">
@@ -102,11 +241,9 @@ export default function ProfilePage() {
                 className="relative"
               >
                 <Avatar size="lg" className="h-24 w-24 text-2xl ring-4 ring-white shadow-xl">
-                  {dummyUser.avatar ? (
-                    <AvatarImage src={dummyUser.avatar} alt={dummyUser.name} />
-                  ) : null}
+                  {null}
                   <AvatarFallback className="bg-gradient-to-br from-primary to-brand-pink-dark text-white text-2xl font-bold">
-                    {dummyUser.initials}
+                    {profile.initials}
                   </AvatarFallback>
                 </Avatar>
                 <button
@@ -124,7 +261,7 @@ export default function ProfilePage() {
                   transition={{ delay: 0.3 }}
                   className="text-2xl font-bold tracking-tight sm:text-3xl"
                 >
-                  {dummyUser.name}
+                  {profile.name}
                 </motion.h1>
                 <motion.p
                   initial={{ opacity: 0, y: 10 }}
@@ -132,7 +269,7 @@ export default function ProfilePage() {
                   transition={{ delay: 0.35 }}
                   className="mt-1 text-sm text-muted-foreground"
                 >
-                  {dummyUser.email}
+                  {profile.email}
                 </motion.p>
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
@@ -140,12 +277,12 @@ export default function ProfilePage() {
                   transition={{ delay: 0.4 }}
                   className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start"
                 >
-                  <Badge className={trimesterColors[dummyUser.trimester]}>
-                    {t(trimesterKeys[dummyUser.trimester])}
+                  <Badge className={trimesterColors[profile.trimester]}>
+                    {t(trimesterKeys[profile.trimester])}
                   </Badge>
                   <Badge variant="outline" className="gap-1.5">
                     <Baby className="h-3 w-3" />
-                    {t("weekOf", { week: dummyUser.currentWeek })}
+                    {t("weekOf", { week: profile.currentWeek })}
                   </Badge>
                   <Badge variant="outline" className="gap-1.5">
                     <Calendar className="h-3 w-3" />
@@ -159,9 +296,20 @@ export default function ProfilePage() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.45 }}
               >
-                <Button variant="outline" className="gap-1.5">
+                <Button
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => {
+                    if (isEditing) {
+                      handleSaveProfile();
+                    } else {
+                      setIsEditing(true);
+                    }
+                  }}
+                  disabled={saving}
+                >
                   <Edit3 className="h-3.5 w-3.5" />
-                  {t("edit")}
+                  {isEditing ? (saving ? "..." : t("save")) : t("edit")}
                 </Button>
               </motion.div>
             </div>
@@ -189,7 +337,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                     <span>{tt("week")} 1</span>
-                    <span className="font-medium text-primary">{tt("week")} {dummyUser.currentWeek}</span>
+                    <span className="font-medium text-primary">{tt("week")} {profile.currentWeek}</span>
                     <span>{tt("week")} 40</span>
                   </div>
                 </CardContent>
@@ -217,9 +365,18 @@ export default function ProfilePage() {
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-3">
                     <User className="h-4 w-4 text-muted-foreground" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-xs text-muted-foreground">{t("fullName")}</p>
-                      <p className="text-sm font-medium">{dummyUser.name}</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                          className="w-full text-sm font-medium bg-transparent border-b border-primary/40 outline-none py-0.5"
+                        />
+                      ) : (
+                        <p className="text-sm font-medium">{profile.name}</p>
+                      )}
                     </div>
                   </div>
                   <Separator />
@@ -227,15 +384,24 @@ export default function ProfilePage() {
                     <Mail className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-xs text-muted-foreground">{t("email")}</p>
-                      <p className="text-sm font-medium">{dummyUser.email}</p>
+                      <p className="text-sm font-medium">{profile.email}</p>
                     </div>
                   </div>
                   <Separator />
                   <div className="flex items-center gap-3">
                     <Phone className="h-4 w-4 text-muted-foreground" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-xs text-muted-foreground">{t("phone")}</p>
-                      <p className="text-sm font-medium">{dummyUser.phone}</p>
+                      {isEditing ? (
+                        <input
+                          type="tel"
+                          value={editForm.phone}
+                          onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                          className="w-full text-sm font-medium bg-transparent border-b border-primary/40 outline-none py-0.5"
+                        />
+                      ) : (
+                        <p className="text-sm font-medium">{profile.phone || "—"}</p>
+                      )}
                     </div>
                   </div>
                   <Separator />
@@ -244,7 +410,7 @@ export default function ProfilePage() {
                     <div>
                       <p className="text-xs text-muted-foreground">{t("memberSince")}</p>
                       <p className="text-sm font-medium">
-                        {new Date(dummyUser.joinedDate).toLocaleDateString("en-GB", {
+                        {new Date(profile.joinedDate).toLocaleDateString("en-GB", {
                           day: "numeric",
                           month: "long",
                           year: "numeric",
@@ -280,7 +446,7 @@ export default function ProfilePage() {
                     <Baby className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-xs text-muted-foreground">{t("currentWeek")}</p>
-                      <p className="text-sm font-medium">{t("weekOf", { week: dummyUser.currentWeek })}</p>
+                      <p className="text-sm font-medium">{t("weekOf", { week: profile.currentWeek })}</p>
                     </div>
                   </div>
                   <Separator />
@@ -288,7 +454,7 @@ export default function ProfilePage() {
                     <Heart className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-xs text-muted-foreground">{t("trimester")}</p>
-                      <p className="text-sm font-medium">{t(trimesterKeys[dummyUser.trimester])}</p>
+                      <p className="text-sm font-medium">{t(trimesterKeys[profile.trimester])}</p>
                     </div>
                   </div>
                   <Separator />
@@ -296,7 +462,7 @@ export default function ProfilePage() {
                     <Heart className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-xs text-muted-foreground">{t("soloMother")}</p>
-                      <p className="text-sm font-medium">{dummyUser.isSoloMother ? t("yes") : t("no")}</p>
+                      <p className="text-sm font-medium">{profile.isSoloMother ? t("yes") : t("no")}</p>
                     </div>
                   </div>
 
@@ -441,6 +607,7 @@ export default function ProfilePage() {
                   <Button
                     variant="outline"
                     className="w-full gap-2 text-destructive hover:bg-destructive/5 hover:text-destructive"
+                    onClick={handleLogout}
                   >
                     <LogOut className="h-4 w-4" />
                     {tc("logout")}

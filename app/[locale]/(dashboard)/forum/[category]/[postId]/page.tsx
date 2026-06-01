@@ -1,8 +1,9 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
+import { createClient } from "@/lib/supabase/client";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -14,6 +15,7 @@ import {
   Flag,
   Send,
   Pin,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,204 +23,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedSection } from "@/components/shared/animated-section";
-
-const threadsData: Record<
-  string,
-  {
-    title: string;
-    content: string;
-    author: string;
-    isAnonymous: boolean;
-    isPinned: boolean;
-    timeAgo: string;
-    views: number;
-    likes: number;
-    category: string;
-    categoryLabel: string;
-    replies: Array<{
-      id: string;
-      author: string;
-      isAnonymous: boolean;
-      content: string;
-      timeAgo: string;
-      likes: number;
-    }>;
-  }
-> = {
-  "1": {
-    title: "Tips pou prepare sak lopital",
-    content: `Mo finn prepare mo sak lopital ek mo anvi partaz mo list ar zot tou. Mo dan semenn 36 ek mo gyneko finn dir mwa prepare depi aster.
-
-Pou mama:
-- 2-3 chemise de nuit (ki ouver devan pou allaitement)
-- Pantouf ek flip flops pou douche
-- Produit toilette (savon, shampoo, brosse dan)
-- Serviette maternite (bann gro la — pa bann normal!)
-- Soutien-gorge allaitement x2
-- Linz pou retour lakaz
-
-Pou baba:
-- 3-4 body/grenouillere (0-1 mwa)
-- 2 bonnet
-- Couverture leze
-- Couche newborn (enn paket)
-- Linz pou retour lakaz
-
-Pa bliye: dokiman (ID card, carnet grosses, plan akousman si ou ena).
-
-Ki zot pou azoute? Mo sir mo pe bliye kiksoz!`,
-    author: "MamaNatasha",
-    isAnonymous: false,
-    isPinned: true,
-    timeAgo: "Il y a 15 min",
-    views: 89,
-    likes: 23,
-    category: "pregnancy",
-    categoryLabel: "Pregnancy",
-    replies: [
-      {
-        id: "r1",
-        author: "SophieM",
-        isAnonymous: false,
-        content:
-          "Merci pou sa list la! Mo ti bliye coussin allaitement. Sa enn must-have! Osi enn ti bouteille dilo ek bann snack pou mama — ou pou ena faim apre akousman.",
-        timeAgo: "Il y a 12 min",
-        likes: 8,
-      },
-      {
-        id: "r2",
-        author: "Anonymous",
-        isAnonymous: true,
-        content:
-          "Mo ti amenn mo prop orye parski lopital so orye pa konfortab ditou. Ek enn ti anz pou baba — pou bann foto!",
-        timeAgo: "Il y a 10 min",
-        likes: 5,
-      },
-      {
-        id: "r3",
-        author: "PriyankaD",
-        isAnonymous: false,
-        content:
-          "Pa bliye chargeur telephone! Ou pou bizin li pou inform fami ek osi pou pas letan. Ek bann long cable charger parski priz parfwa lwin depi lili.",
-        timeAgo: "Il y a 8 min",
-        likes: 12,
-      },
-      {
-        id: "r4",
-        author: "FutureManman22",
-        isAnonymous: false,
-        content:
-          "Si ou fer akousman dan clinique prive (City Clinic, Wellkin etc), zot donn buku zafer. Me dan lopital gouvernman, ou bizin amenn tou ou mem. Mo ti dan SSRN ek mo ti kontan mo ti prepare bien!",
-        timeAgo: "Il y a 5 min",
-        likes: 15,
-      },
-      {
-        id: "r5",
-        author: "ManmanJulie",
-        isAnonymous: false,
-        content:
-          "Enn bon tip: met tou baba so zafer dan enn ti sak separe dan ou gro sak. Koumsa li pli fasil pou trouve. Ek prepare enn sak apart pou papa osi — snacks, linz chanze, etc.",
-        timeAgo: "Il y a 2 min",
-        likes: 7,
-      },
-    ],
-  },
-  "2": {
-    title: "PPD — mo lexperyans ek konsey",
-    content: `Mo anvi partaz mo lexperyans ar depresyon postnatal parski mo kone buku mama pas par la me pa koze.
-
-Apre mo baba finn ne, mo ti panse mo ti pou kontan me mo ti santi mwa vid. Mo pa ti anvi get mo baba parfwa ek mo ti santi mwa coupable pou sa. Mo ti plore tou le zour san rezon.
-
-Mo mari ti remarke ek li ti ankouraz mwa al get enn psychologue. Sa ti sanz mo lavi. Apre 3 mwa therapi ek enn ti medikaman, mo ti koumans santi mwa mwa-mem ankor.
-
-Si ou pe santi ou koumsa:
-1. Pa onte — sa enn maladi, pa enn faiblès
-2. Koze ar kikenn — ou partner, ou mama, enn ami
-3. Apel SOS Detresse: 800 93 93 (gratis, 24/7)
-4. Al get enn professionel — dokter ou psychologue
-
-Ou pa sel. Ek ou pou al mie. ❤️`,
-    author: "Anonymous",
-    isAnonymous: true,
-    isPinned: true,
-    timeAgo: "Il y a 30 min",
-    views: 124,
-    likes: 45,
-    category: "postpartum",
-    categoryLabel: "Postpartum",
-    replies: [
-      {
-        id: "r1",
-        author: "Anonymous",
-        isAnonymous: true,
-        content:
-          "Merci pou partaz sa. Mo pe viv mem zafer ek mo ti kwar mo ti sel. Sa post la finn donn mwa kouraz pou dimand led. ❤️",
-        timeAgo: "Il y a 25 min",
-        likes: 18,
-      },
-      {
-        id: "r2",
-        author: "AishaB",
-        isAnonymous: false,
-        content:
-          "Mo finn pas par la osi. Therapi CBT ti vreman ed mwa. Dr. Soobrayen dan Rose Hill enn bon psychologue pou PPD. Pa ezite al get li.",
-        timeAgo: "Il y a 20 min",
-        likes: 12,
-      },
-      {
-        id: "r3",
-        author: "Anonymous",
-        isAnonymous: true,
-        content:
-          "Mo baba ena 4 mwa ek mo toizer pe realize ki mo ena PPD. Merci pou sa post la. Mo pou apel SOS Detresse zordi.",
-        timeAgo: "Il y a 15 min",
-        likes: 22,
-      },
-    ],
-  },
-};
-
-const defaultThread = {
-  title: "Diskisyon forum",
-  content:
-    "Konteni sa post la pe load... Revini pli tar pou lir tou bann repons.",
-  author: "MamaMoris",
-  isAnonymous: false,
-  isPinned: false,
-  timeAgo: "Il y a 1h",
-  views: 42,
-  likes: 5,
-  category: "general",
-  categoryLabel: "General",
-  replies: [
-    {
-      id: "r1",
-      author: "SophieM",
-      isAnonymous: false,
-      content: "Mersi pou partaz sa! Mo osi mo ti ena mem kestion.",
-      timeAgo: "Il y a 45 min",
-      likes: 3,
-    },
-    {
-      id: "r2",
-      author: "Anonymous",
-      isAnonymous: true,
-      content: "Bien itil sa informasyon la. Mo finn partaz ar mo bann kamarad.",
-      timeAgo: "Il y a 30 min",
-      likes: 2,
-    },
-    {
-      id: "r3",
-      author: "PriyankaD",
-      isAnonymous: false,
-      content:
-        "Mo dakor ar twa! Mo ti gagn mem lexperyans. Fode nou partaz plis ant nou.",
-      timeAgo: "Il y a 20 min",
-      likes: 4,
-    },
-  ],
-};
 
 const categoryBadgeColor: Record<string, string> = {
   pregnancy: "bg-pink-100 text-pink-700 border-pink-200",
@@ -226,6 +32,51 @@ const categoryBadgeColor: Record<string, string> = {
   "solo-mothers": "bg-teal-100 text-teal-700 border-teal-200",
   general: "bg-blue-100 text-blue-700 border-blue-200",
 };
+
+const categoryNameMap: Record<string, string> = {
+  pregnancy: "Pregnancy",
+  postpartum: "Postpartum",
+  "solo-mothers": "Solo Mothers",
+  general: "General",
+};
+
+interface ForumPostData {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  user_id: string;
+  is_anonymous: boolean;
+  is_pinned: boolean;
+  reply_count: number;
+  like_count: number;
+  created_at: string;
+  profiles: { full_name: string } | null;
+}
+
+interface ForumReply {
+  id: string;
+  post_id: string;
+  user_id: string;
+  content: string;
+  is_anonymous: boolean;
+  like_count: number;
+  created_at: string;
+  profiles: { full_name: string } | null;
+}
+
+function timeAgo(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `${diffH}h ago`;
+  const diffD = Math.floor(diffH / 24);
+  return `${diffD}d ago`;
+}
 
 export default function ForumThreadPage({
   params,
@@ -236,7 +87,260 @@ export default function ForumThreadPage({
   const t = useTranslations("forum");
   const locale = useLocale();
 
-  const thread = threadsData[postId] || defaultThread;
+  const [post, setPost] = useState<ForumPostData | null>(null);
+  const [replies, setReplies] = useState<ForumReply[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [replyContent, setReplyContent] = useState("");
+  const [replyAnonymous, setReplyAnonymous] = useState(false);
+  const [submittingReply, setSubmittingReply] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [hasLiked, setHasLiked] = useState(false);
+  const [optimisticLikeCount, setOptimisticLikeCount] = useState(0);
+
+  const fetchPost = useCallback(async () => {
+    const supabase = createClient();
+
+    const [postResult, repliesResult, userResult] = await Promise.all([
+      supabase
+        .from("forum_posts")
+        .select("*, profiles(full_name)")
+        .eq("id", postId)
+        .single(),
+      supabase
+        .from("forum_replies")
+        .select("*, profiles(full_name)")
+        .eq("post_id", postId)
+        .order("created_at", { ascending: true }),
+      supabase.auth.getUser(),
+    ]);
+
+    if (postResult.data) {
+      const postData = postResult.data as ForumPostData;
+      setPost(postData);
+      setOptimisticLikeCount(postData.like_count ?? 0);
+    }
+
+    if (repliesResult.data) {
+      setReplies(repliesResult.data as ForumReply[]);
+    }
+
+    const currentUserId = userResult.data?.user?.id ?? null;
+    setUserId(currentUserId);
+
+    // Check if user has liked this post
+    if (currentUserId) {
+      const { data: likeData } = await supabase
+        .from("forum_post_likes")
+        .select("id")
+        .eq("post_id", postId)
+        .eq("user_id", currentUserId)
+        .single();
+      setHasLiked(!!likeData);
+    }
+
+    setLoading(false);
+  }, [postId]);
+
+  useEffect(() => {
+    fetchPost();
+  }, [fetchPost]);
+
+  const refreshReplies = useCallback(async () => {
+    const supabase = createClient();
+    const [repliesResult, postResult] = await Promise.all([
+      supabase
+        .from("forum_replies")
+        .select("*, profiles(full_name)")
+        .eq("post_id", postId)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("forum_posts")
+        .select("*, profiles(full_name)")
+        .eq("id", postId)
+        .single(),
+    ]);
+    if (repliesResult.data) {
+      setReplies(repliesResult.data as ForumReply[]);
+    }
+    if (postResult.data) {
+      const postData = postResult.data as ForumPostData;
+      setPost(postData);
+      setOptimisticLikeCount(postData.like_count ?? 0);
+    }
+  }, [postId]);
+
+  // Subscribe to realtime changes so replies from other users appear live.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`forum-thread-${postId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "forum_replies",
+          filter: `post_id=eq.${postId}`,
+        },
+        () => {
+          refreshReplies();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "forum_posts",
+          filter: `id=eq.${postId}`,
+        },
+        () => {
+          refreshReplies();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [postId, refreshReplies]);
+
+  const handleReply = async () => {
+    if (!replyContent.trim() || !userId) return;
+
+    setSubmittingReply(true);
+    const supabase = createClient();
+
+    const { error } = await supabase.from("forum_replies").insert({
+      post_id: postId,
+      user_id: userId,
+      content: replyContent.trim(),
+      is_anonymous: replyAnonymous,
+    });
+
+    if (!error) {
+      // Update reply_count on the post
+      if (post) {
+        await supabase
+          .from("forum_posts")
+          .update({ reply_count: (post.reply_count ?? 0) + 1 })
+          .eq("id", postId);
+      }
+
+      setReplyContent("");
+      setReplyAnonymous(false);
+
+      // Re-fetch replies and post (realtime will also refresh other viewers)
+      await refreshReplies();
+    }
+
+    setSubmittingReply(false);
+  };
+
+  const handleLike = async () => {
+    if (!userId) return;
+
+    const supabase = createClient();
+
+    // like_count on forum_posts is maintained by a DB trigger
+    // (sync_forum_post_like_count); clients only toggle their own like row.
+    if (hasLiked) {
+      // Optimistic: unlike
+      setHasLiked(false);
+      setOptimisticLikeCount((c) => Math.max(0, c - 1));
+
+      await supabase
+        .from("forum_post_likes")
+        .delete()
+        .eq("post_id", postId)
+        .eq("user_id", userId);
+    } else {
+      // Optimistic: like
+      setHasLiked(true);
+      setOptimisticLikeCount((c) => c + 1);
+
+      await supabase.from("forum_post_likes").insert({
+        post_id: postId,
+        user_id: userId,
+      });
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      alert(t("linkCopied"));
+    } catch {
+      // Fallback for older browsers
+      alert(t("linkCopied"));
+    }
+  };
+
+  const handleReport = async () => {
+    if (!userId) return;
+
+    const reason = window.prompt(t("reportReason"));
+    if (!reason || !reason.trim()) return;
+
+    const supabase = createClient();
+    await supabase.from("forum_reports").insert({
+      post_id: postId,
+      user_id: userId,
+      reason: reason.trim(),
+    });
+
+    alert(t("reportSubmitted"));
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-brand-pink-light/30 via-background to-background">
+        <section className="border-b bg-white/50 backdrop-blur-sm">
+          <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+            <Skeleton className="h-5 w-32" />
+          </div>
+        </section>
+        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 space-y-4">
+          <Card className="border-border/50">
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-start gap-3">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              </div>
+              <Skeleton className="h-7 w-3/4" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+            </CardContent>
+          </Card>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="border-border/50">
+              <CardContent className="p-4 flex items-start gap-3">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!post) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-brand-pink-light/30 via-background to-background flex items-center justify-center">
+        <p className="text-muted-foreground">{t("noPostsYet")}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-pink-light/30 via-background to-background">
@@ -248,7 +352,7 @@ export default function ForumThreadPage({
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            {t("backTo")} {thread.categoryLabel}
+            {t("backTo")} {categoryNameMap[post.category] || post.category}
           </Link>
         </div>
       </section>
@@ -262,15 +366,19 @@ export default function ForumThreadPage({
               <div className="flex items-start gap-3 p-5 pb-0">
                 <Avatar size="lg">
                   <AvatarFallback className="text-base">
-                    {thread.isAnonymous ? "?" : thread.author[0]}
+                    {post.is_anonymous
+                      ? "?"
+                      : (post.profiles?.full_name?.[0] ?? "?")}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-sm">
-                      {thread.isAnonymous ? t("anonymous") : thread.author}
+                      {post.is_anonymous
+                        ? t("anonymous")
+                        : post.profiles?.full_name ?? t("anonymous")}
                     </span>
-                    {thread.isPinned && (
+                    {post.is_pinned && (
                       <Badge
                         variant="secondary"
                         className="gap-1 bg-amber-100 text-amber-700 border-amber-200 text-xs"
@@ -281,19 +389,15 @@ export default function ForumThreadPage({
                     )}
                     <Badge
                       variant="outline"
-                      className={`text-xs ${categoryBadgeColor[thread.category]}`}
+                      className={`text-xs ${categoryBadgeColor[post.category] || ""}`}
                     >
-                      {thread.categoryLabel}
+                      {categoryNameMap[post.category] || post.category}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {thread.timeAgo}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Eye className="h-3 w-3" />
-                      {thread.views} {t("views")}
+                      {timeAgo(post.created_at)}
                     </span>
                   </div>
                 </div>
@@ -302,28 +406,49 @@ export default function ForumThreadPage({
               {/* Post title */}
               <div className="px-5 pt-4">
                 <h1 className="text-xl font-bold sm:text-2xl">
-                  {thread.title}
+                  {post.title}
                 </h1>
               </div>
 
               {/* Post content */}
               <div className="px-5 pt-3 pb-4">
                 <div className="prose prose-sm max-w-none text-foreground/90 whitespace-pre-line leading-relaxed">
-                  {thread.content}
+                  {post.content}
                 </div>
               </div>
 
               {/* Post actions */}
               <div className="flex items-center gap-1 px-5 pb-4">
-                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
-                  <Heart className="h-4 w-4" />
-                  <span className="text-xs">{thread.likes}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  data-testid="post-like-button"
+                  aria-pressed={hasLiked}
+                  className={`gap-1.5 ${hasLiked ? "text-pink-500" : "text-muted-foreground"}`}
+                  onClick={handleLike}
+                >
+                  <Heart
+                    className={`h-4 w-4 ${hasLiked ? "fill-pink-500" : ""}`}
+                  />
+                  <span className="text-xs" data-testid="post-like-count">
+                    {optimisticLikeCount}
+                  </span>
                 </Button>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-muted-foreground"
+                  onClick={handleShare}
+                >
                   <Share2 className="h-4 w-4" />
                   <span className="text-xs">{t("share")}</span>
                 </Button>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-muted-foreground"
+                  onClick={handleReport}
+                >
                   <Flag className="h-4 w-4" />
                   <span className="text-xs">{t("report")}</span>
                 </Button>
@@ -337,14 +462,14 @@ export default function ForumThreadPage({
           <div className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5 text-primary" />
             <h2 className="font-semibold">
-              {thread.replies.length} {t("replies")}
+              {replies.length} {t("replies")}
             </h2>
           </div>
         </AnimatedSection>
 
         {/* Replies */}
         <div className="mt-4 space-y-3">
-          {thread.replies.map((reply, index) => (
+          {replies.map((reply, index) => (
             <motion.div
               key={reply.id}
               initial={{ opacity: 0, y: 20 }}
@@ -360,16 +485,20 @@ export default function ForumThreadPage({
                   <div className="flex items-start gap-3">
                     <Avatar>
                       <AvatarFallback>
-                        {reply.isAnonymous ? "?" : reply.author[0]}
+                        {reply.is_anonymous
+                          ? "?"
+                          : (reply.profiles?.full_name?.[0] ?? "?")}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-sm">
-                          {reply.isAnonymous ? t("anonymous") : reply.author}
+                          {reply.is_anonymous
+                            ? t("anonymous")
+                            : reply.profiles?.full_name ?? t("anonymous")}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {reply.timeAgo}
+                          {timeAgo(reply.created_at)}
                         </span>
                       </div>
                       <p className="mt-2 text-sm text-foreground/90 leading-relaxed">
@@ -382,7 +511,7 @@ export default function ForumThreadPage({
                           className="gap-1.5 text-muted-foreground h-7 px-2"
                         >
                           <Heart className="h-3.5 w-3.5" />
-                          <span className="text-xs">{reply.likes}</span>
+                          <span className="text-xs">{reply.like_count ?? 0}</span>
                         </Button>
                       </div>
                     </div>
@@ -401,14 +530,29 @@ export default function ForumThreadPage({
               <Textarea
                 placeholder={t("replyPlaceholder")}
                 className="min-h-24 resize-none"
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
               />
               <div className="mt-3 flex items-center justify-between">
                 <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                  <input type="checkbox" className="rounded border-input" />
+                  <input
+                    type="checkbox"
+                    className="rounded border-input"
+                    checked={replyAnonymous}
+                    onChange={(e) => setReplyAnonymous(e.target.checked)}
+                  />
                   {t("postAnonymously")}
                 </label>
-                <Button className="gap-2 bg-primary hover:bg-brand-pink-dark">
-                  <Send className="h-4 w-4" />
+                <Button
+                  className="gap-2 bg-primary hover:bg-brand-pink-dark"
+                  onClick={handleReply}
+                  disabled={submittingReply || !replyContent.trim()}
+                >
+                  {submittingReply ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
                   {t("replyButton")}
                 </Button>
               </div>

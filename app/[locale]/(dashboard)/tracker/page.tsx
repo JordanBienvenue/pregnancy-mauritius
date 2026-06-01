@@ -24,6 +24,7 @@ import {
   StaggerContainer,
   StaggerItem,
 } from "@/components/shared/animated-section";
+import { DebugAd } from "@/components/ads/debug-ad-placements";
 
 // ── All 40 weeks with Mauritian fruit comparisons ────────────────────────
 const weekData = [
@@ -206,6 +207,11 @@ export default function TrackerPage() {
         </div>
       </section>
 
+      {/* Debug: Leaderboard Ad before due date calculator */}
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+        <DebugAd placement="leaderboard" sponsor="pharmacy" />
+      </div>
+
       {/* Due date calculator */}
       <section className="border-b bg-muted/30 py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -257,6 +263,11 @@ export default function TrackerPage() {
           </AnimatedSection>
         </div>
       </section>
+
+      {/* Debug: Category Sponsor Badge for tracker section */}
+      <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
+        <DebugAd placement="category-badge" sponsor="fitness" categoryName="Pregnancy Tracker" />
+      </div>
 
       {/* Week grid */}
       <section className="py-12 sm:py-16">

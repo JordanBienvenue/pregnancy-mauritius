@@ -25,6 +25,7 @@ import {
   StaggerContainer,
   StaggerItem,
 } from "@/components/shared/animated-section";
+import { DebugAd } from "@/components/ads/debug-ad-placements";
 
 const features = [
   { icon: Baby, key: "featureTracker", descKey: "featureTrackerDesc", href: "/tracker", color: "text-pink-500 bg-pink-50" },
@@ -52,6 +53,9 @@ export default function HomePage() {
 
   return (
     <div className="overflow-hidden">
+      {/* Debug: Sticky Top Bar Ad */}
+      <DebugAd placement="sticky-top" sponsor="clinic" />
+
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center justify-center">
         {/* Gradient background */}
@@ -156,6 +160,11 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Debug: Leaderboard Ad between Stats and Features */}
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+        <DebugAd placement="leaderboard" sponsor="pharmacy" />
+      </div>
+
       {/* Features */}
       <section className="py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -221,6 +230,11 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Debug: Sponsored Content Card before CTA */}
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+        <DebugAd placement="sponsored-card" sponsor="insurance" />
+      </div>
+
       {/* CTA */}
       <section className="py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -250,6 +264,9 @@ export default function HomePage() {
           </AnimatedSection>
         </div>
       </section>
+
+      {/* Debug: Sticky Bottom Bar Ad */}
+      <DebugAd placement="sticky-bottom" sponsor="babyShop" />
     </div>
   );
 }
