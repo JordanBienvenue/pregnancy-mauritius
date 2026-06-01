@@ -286,6 +286,7 @@
     "districtPlaceholder": "ex: Port Louis, Curepipe, Rose Hill...",
     "searchPlaceholder": "Rechercher des articles...",
     "claimSuccess": "Objet reclame avec succes!",
+    "alreadyClaimed": "Desole, cet objet vient d'etre reclame par quelqu'un d'autre.",
     "loginToRequest": "Connectez-vous pour demander des objets",
     "listingSuccess": "Objet liste avec succes!",
     "noDonations": "Pas encore de dons disponibles",

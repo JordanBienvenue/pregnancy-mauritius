@@ -135,7 +135,10 @@ export default function DonatePage() {
       )
     );
 
-    const { error } = await supabase
+    // Only one claimer can win: the `is_available = true` filter means a
+    // concurrent loser updates 0 rows. Use .select() to confirm a row was
+    // actually claimed rather than assuming success on a null error.
+    const { data: claimed, error } = await supabase
       .from("donations")
       .update({
         claimed_by: user.id,
@@ -143,11 +146,16 @@ export default function DonatePage() {
         is_available: false,
       })
       .eq("id", itemId)
-      .eq("is_available", true);
+      .eq("is_available", true)
+      .select("id");
 
-    if (error) {
-      console.error("Error claiming item:", error);
-      // Revert optimistic update on failure
+    const won = !error && claimed && claimed.length > 0;
+
+    if (won) {
+      alert(t("claimSuccess"));
+    } else {
+      if (error) console.error("Error claiming item:", error);
+      // Lost the race (or errored): revert optimism and resync from server.
       setDonations((prev) =>
         prev.map((item) =>
           item.id === itemId
@@ -155,8 +163,8 @@ export default function DonatePage() {
             : item
         )
       );
-    } else {
-      alert(t("claimSuccess"));
+      if (!error) alert(t("alreadyClaimed"));
+      await fetchDonations();
     }
 
     setClaimingId(null);

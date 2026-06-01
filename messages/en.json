@@ -286,6 +286,7 @@
     "districtPlaceholder": "e.g.: Port Louis, Curepipe, Rose Hill...",
     "searchPlaceholder": "Search items...",
     "claimSuccess": "Item claimed successfully!",
+    "alreadyClaimed": "Sorry, this item was just claimed by someone else.",
     "loginToRequest": "Please log in to request items",
     "listingSuccess": "Item listed successfully!",
     "noDonations": "No donations available yet",
