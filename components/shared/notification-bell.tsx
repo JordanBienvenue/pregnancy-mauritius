@@ -37,32 +37,42 @@ export function NotificationBell() {
     if (data) setItems(data as Notification[]);
   }, []);
 
+  // Resolve the current user (and track sign-in/out).
   useEffect(() => {
     const supabase = createClient();
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    supabase.auth.getUser().then(({ data }) => {
-      const uid = data.user?.id ?? null;
-      setUserId(uid);
-      if (!uid) return;
-      fetchItems(uid);
-      channel = supabase
-        .channel(`notifications-${uid}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "notifications",
-            filter: `user_id=eq.${uid}`,
-          },
-          () => fetchItems(uid)
-        )
-        .subscribe();
-    });
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) =>
+      setUserId(session?.user?.id ?? null)
+    );
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Subscribe to this user's notifications. Kept separate from the async user
+  // lookup so the channel is created and removed synchronously (avoids the
+  // "callbacks after subscribe()" error when a channel name is reused).
+  useEffect(() => {
+    if (!userId) return;
+    const supabase = createClient();
+    fetchItems(userId);
+    const channel = supabase
+      .channel(`notifications-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => fetchItems(userId)
+      )
+      .subscribe();
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      supabase.removeChannel(channel);
     };
-  }, [fetchItems]);
+  }, [userId, fetchItems]);
 
   // Close the panel on outside click.
   useEffect(() => {
