@@ -94,7 +94,9 @@ export default function DonatePage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("donations")
-      .select("*, profiles(full_name)")
+      // donations has two FKs to profiles (donor_id + claimed_by); disambiguate
+      // the embed to the donor to avoid PostgREST PGRST201.
+      .select("*, profiles!donor_id(full_name)")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -333,9 +335,19 @@ export default function DonatePage() {
                         }`}
                       >
                         <CardContent className="p-0">
-                          {/* Image placeholder */}
-                          <div className="relative h-40 bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center rounded-t-xl">
-                            <CatIcon className="h-12 w-12 text-muted-foreground/30" />
+                          {/* Photo, or icon placeholder when none */}
+                          <div className="relative h-40 overflow-hidden bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center rounded-t-xl">
+                            {item.images && item.images[0] ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={item.images[0]}
+                                alt={item.item_name}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <CatIcon className="h-12 w-12 text-muted-foreground/30" />
+                            )}
                             <div className="absolute top-3 left-3 flex gap-2">
                               <Badge
                                 variant="outline"

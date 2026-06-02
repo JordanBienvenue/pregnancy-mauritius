@@ -47,6 +47,10 @@ INSERT INTO donations (item_name, description, condition, category, district, is
 ('Baby cot with mattress', 'Wooden baby cot. Adjustable height. Includes new mattress. Used for one child.', 'good', 'equipment', 'flacq', true),
 ('Nursing pillow', 'Boppy nursing pillow with 2 covers. Great for breastfeeding support.', 'good', 'feeding', 'port_louis', true);
 
+-- A donation with a photo (demonstrates image rendering).
+INSERT INTO donations (item_name, description, condition, category, district, is_available, images) VALUES
+('Baby stroller', 'Lightweight 3-wheel baby stroller, foldable, with sun canopy. Gently used, great condition.', 'like_new', 'equipment', 'quatre_bornes', true, ARRAY['/donations/stroller.svg']);
+
 -- ───────────────────────────────────────────────────────────────
 -- Dev-only test users (so login works after `supabase db reset`).
 -- All passwords: test123456. profiles rows are auto-created by the

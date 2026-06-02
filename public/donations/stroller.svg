@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300" role="img" aria-label="Baby stroller">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fde7f0"/>
+      <stop offset="1" stop-color="#e6f7f3"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <g fill="none" stroke="#be185d" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M110 110 h120 a70 70 0 0 1 -140 0 Z" fill="#fbcfe8"/>
+    <path d="M230 110 L300 70"/>
+    <path d="M110 150 L150 230"/>
+    <path d="M230 150 L210 230"/>
+    <path d="M120 110 v40"/>
+  </g>
+  <circle cx="150" cy="245" r="20" fill="#fff" stroke="#be185d" stroke-width="8"/>
+  <circle cx="210" cy="245" r="20" fill="#fff" stroke="#be185d" stroke-width="8"/>
+  <text x="200" y="285" font-family="Inter, system-ui, sans-serif" font-size="16" fill="#9d174d" text-anchor="middle" font-weight="600">Baby stroller</text>
+</svg>
