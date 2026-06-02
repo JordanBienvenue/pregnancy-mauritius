@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { createClient } from "@/lib/supabase/client";
 import { SponsorBanner } from "@/components/shared/sponsor-banner";
 import { motion } from "framer-motion";
 import {
@@ -30,9 +32,76 @@ import {
   StaggerItem,
 } from "@/components/shared/animated-section";
 
+// Standard infant immunisation milestones (age in months → label).
+const VACCINE_SCHEDULE = [
+  { months: 1.5, label: "Penta-1 / OPV-1" },
+  { months: 2.5, label: "Penta-2 / OPV-2" },
+  { months: 3.5, label: "Penta-3 / OPV-3" },
+  { months: 9, label: "Measles-1" },
+  { months: 12, label: "Measles-2" },
+  { months: 18, label: "Booster" },
+];
+
+function monthsSince(dateStr: string): number {
+  const dob = new Date(dateStr).getTime();
+  const now = Date.now();
+  return Math.max(0, (now - dob) / (1000 * 60 * 60 * 24 * 30.44));
+}
+
 export default function PostpartumDashboard() {
   const t = useTranslations("postpartum");
   const locale = useLocale();
+
+  const [babyDob, setBabyDob] = useState<string | null>(null);
+  const [ppd, setPpd] = useState<{ score: number; created_at: string } | null>(
+    null
+  );
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const [{ data: profile }, { data: checkins }] = await Promise.all([
+          supabase.from("profiles").select("baby_dob").eq("id", user.id).single(),
+          supabase
+            .from("ppd_checkins")
+            .select("score, created_at")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(1),
+        ]);
+        setBabyDob(profile?.baby_dob ?? null);
+        if (checkins && checkins.length > 0)
+          setPpd(checkins[0] as { score: number; created_at: string });
+      }
+      setLoaded(true);
+    })();
+  }, []);
+
+  // Derived, real values.
+  const ppdSeverity =
+    ppd == null
+      ? null
+      : ppd.score >= 13
+        ? { label: t("elevated"), badge: "bg-rose-100 text-rose-700" }
+        : ppd.score >= 10
+          ? { label: t("monitor"), badge: "bg-amber-100 text-amber-700" }
+          : { label: t("normal"), badge: "bg-green-100 text-green-700" };
+  const ppdDaysAgo = ppd
+    ? Math.floor(
+        (Date.now() - new Date(ppd.created_at).getTime()) / (1000 * 60 * 60 * 24)
+      )
+    : null;
+
+  const babyAgeMonths = babyDob ? Math.floor(monthsSince(babyDob)) : null;
+  const nextVaccine =
+    babyDob != null
+      ? VACCINE_SCHEDULE.find((v) => v.months > monthsSince(babyDob)) ?? null
+      : null;
 
   const dashboardCards = [
     {
@@ -129,16 +198,31 @@ export default function PostpartumDashboard() {
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-green-50">
                   <Heart className="h-7 w-7 text-green-500" />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0" data-testid="ppd-summary">
                   <p className="text-sm text-muted-foreground">{t("ppdTitle")}</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-foreground">6</span>
-                    <span className="text-sm text-muted-foreground">/30</span>
-                    <Badge className="ml-1 bg-green-100 text-green-700 text-xs">
-                      {t("normal")}
-                    </Badge>
-                  </div>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{t("lastCheck", { days: 2 })}</p>
+                  {ppd && ppdSeverity ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl font-bold text-foreground">
+                          {ppd.score}
+                        </span>
+                        <span className="text-sm text-muted-foreground">/30</span>
+                        <Badge className={`ml-1 text-xs ${ppdSeverity.badge}`}>
+                          {ppdSeverity.label}
+                        </Badge>
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {t("lastCheck", { days: ppdDaysAgo ?? 0 })}
+                      </p>
+                    </>
+                  ) : (
+                    <Link
+                      href={`/${locale}/postpartum/ppd`}
+                      className="text-sm font-medium text-primary hover:underline"
+                    >
+                      {loaded ? t("takeTest") : "…"}
+                    </Link>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -151,13 +235,33 @@ export default function PostpartumDashboard() {
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-purple-50">
                   <Baby className="h-7 w-7 text-purple-500" />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0" data-testid="baby-age-summary">
                   <p className="text-sm text-muted-foreground">{t("babyAge")}</p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold text-foreground">3</span>
-                    <span className="text-sm text-muted-foreground">{t("months")}</span>
-                  </div>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{t("bornDate", { date: "Jan 7, 2026" })}</p>
+                  {babyAgeMonths != null && babyDob ? (
+                    <>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-bold text-foreground">
+                          {babyAgeMonths}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          {t("months")}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {t("bornDate", {
+                          date: new Date(babyDob).toLocaleDateString(locale, {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          }),
+                        })}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {loaded ? t("noBabyData") : "…"}
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -170,10 +274,22 @@ export default function PostpartumDashboard() {
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-50">
                   <Calendar className="h-7 w-7 text-blue-500" />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0" data-testid="vaccine-summary">
                   <p className="text-sm text-muted-foreground">{t("nextVaccination")}</p>
-                  <p className="text-base font-semibold text-foreground">4 {t("months")}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">DTPw-HepB-Hib-2, OPV-2</p>
+                  {nextVaccine ? (
+                    <>
+                      <p className="text-base font-semibold text-foreground">
+                        {nextVaccine.months} {t("months")}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {nextVaccine.label}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {loaded ? t("noBabyData") : "…"}
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
