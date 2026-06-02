@@ -21,13 +21,14 @@ test.describe('Authentication', () => {
 
   test('login page has link to register', async ({ page }) => {
     await page.goto('/en/login');
-    const registerLink = page.locator('a[href*="/register"]');
+    // Header + form both link to register; assert at least one exists.
+    const registerLink = page.locator('a[href*="/register"]').first();
     await expect(registerLink).toBeVisible();
   });
 
   test('register page has link to login', async ({ page }) => {
     await page.goto('/en/register');
-    const loginLink = page.locator('a[href*="/login"]');
+    const loginLink = page.locator('a[href*="/login"]').first();
     await expect(loginLink).toBeVisible();
   });
 

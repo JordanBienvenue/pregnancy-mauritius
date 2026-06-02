@@ -47,49 +47,62 @@ INSERT INTO donations (item_name, description, condition, category, district, is
 ('Baby cot with mattress', 'Wooden baby cot. Adjustable height. Includes new mattress. Used for one child.', 'good', 'equipment', 'flacq', true),
 ('Nursing pillow', 'Boppy nursing pillow with 2 covers. Great for breastfeeding support.', 'good', 'feeding', 'port_louis', true);
 
+-- A donation with a photo (demonstrates image rendering).
+INSERT INTO donations (item_name, description, condition, category, district, is_available, images) VALUES
+('Baby stroller', 'Lightweight 3-wheel baby stroller, foldable, with sun canopy. Gently used, great condition.', 'like_new', 'equipment', 'quatre_bornes', true, ARRAY['/donations/stroller.svg']);
+
 -- ───────────────────────────────────────────────────────────────
 -- Dev-only test users (so login works after `supabase db reset`).
---   admin@test.com / user@test.com  —  password: test123456
--- profiles rows are auto-created by the handle_new_user trigger.
+-- All passwords: test123456. profiles rows are auto-created by the
+-- handle_new_user trigger; we set roles / flags afterwards.
+--   admin@test.com   → admin
+--   mod@test.com     → moderator
+--   editor@test.com  → editor
+--   user@test.com    → user
+--   mama2@test.com   → user
+--   solo@test.com    → user (is_solo_mother)
+-- Token columns are set to '' inline: GoTrue scans them as non-nullable
+-- strings and NULL triggers "Database error querying schema" on login.
 -- ───────────────────────────────────────────────────────────────
+WITH seed_users(id, email, full_name) AS (
+  VALUES
+    ('00000000-0000-0000-0000-0000000000a1', 'admin@test.com',  'Test Admin'),
+    ('00000000-0000-0000-0000-0000000000b2', 'user@test.com',   'Test User'),
+    ('00000000-0000-0000-0000-0000000000c3', 'mod@test.com',    'Test Moderator'),
+    ('00000000-0000-0000-0000-0000000000d4', 'editor@test.com', 'Test Editor'),
+    ('00000000-0000-0000-0000-0000000000e5', 'mama2@test.com',  'Mama Deux'),
+    ('00000000-0000-0000-0000-0000000000f6', 'solo@test.com',   'Solo Mama')
+)
 INSERT INTO auth.users (
-  instance_id, id, aud, role, email, encrypted_password,
-  email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
-  created_at, updated_at
-) VALUES
-  ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000000a1',
-   'authenticated', 'authenticated', 'admin@test.com',
-   extensions.crypt('test123456', extensions.gen_salt('bf')),
-   now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Test Admin"}',
-   now(), now()),
-  ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000000b2',
-   'authenticated', 'authenticated', 'user@test.com',
-   extensions.crypt('test123456', extensions.gen_salt('bf')),
-   now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Test User"}',
-   now(), now())
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change, email_change_token_new,
+  email_change_token_current, phone_change, phone_change_token, reauthentication_token
+)
+SELECT
+  '00000000-0000-0000-0000-000000000000', u.id::uuid, 'authenticated', 'authenticated',
+  u.email, extensions.crypt('test123456', extensions.gen_salt('bf')), now(),
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  jsonb_build_object('full_name', u.full_name), now(), now(),
+  '', '', '', '', '', '', '', ''
+FROM seed_users u
 ON CONFLICT (id) DO NOTHING;
-
--- GoTrue scans these token columns as non-nullable strings; NULL => "Database
--- error querying schema" on login. Force empty strings for the seeded users.
-UPDATE auth.users SET
-  confirmation_token = '', recovery_token = '', email_change = '',
-  email_change_token_new = '', email_change_token_current = '',
-  phone_change = '', phone_change_token = '', reauthentication_token = ''
-WHERE id IN (
-  '00000000-0000-0000-0000-0000000000a1',
-  '00000000-0000-0000-0000-0000000000b2'
-);
 
 INSERT INTO auth.identities (
   provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
-) VALUES
-  ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000a1',
-   '{"sub":"00000000-0000-0000-0000-0000000000a1","email":"admin@test.com","email_verified":true,"phone_verified":false}',
-   'email', now(), now(), now()),
-  ('00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000b2',
-   '{"sub":"00000000-0000-0000-0000-0000000000b2","email":"user@test.com","email_verified":true,"phone_verified":false}',
-   'email', now(), now(), now())
+)
+SELECT
+  u.id::text, u.id,
+  jsonb_build_object('sub', u.id::text, 'email', u.email,
+                     'email_verified', true, 'phone_verified', false),
+  'email', now(), now(), now()
+FROM auth.users u
+WHERE u.email IN ('admin@test.com', 'user@test.com', 'mod@test.com',
+                  'editor@test.com', 'mama2@test.com', 'solo@test.com')
 ON CONFLICT DO NOTHING;
 
--- Promote the admin test user (profile auto-created by trigger above).
-UPDATE profiles SET role = 'admin' WHERE id = '00000000-0000-0000-0000-0000000000a1';
+-- Roles & flags (profiles auto-created by trigger above).
+UPDATE profiles SET role = 'admin'     WHERE id = '00000000-0000-0000-0000-0000000000a1';
+UPDATE profiles SET role = 'moderator' WHERE id = '00000000-0000-0000-0000-0000000000c3';
+UPDATE profiles SET role = 'editor'    WHERE id = '00000000-0000-0000-0000-0000000000d4';
+UPDATE profiles SET is_solo_mother = true WHERE id = '00000000-0000-0000-0000-0000000000f6';

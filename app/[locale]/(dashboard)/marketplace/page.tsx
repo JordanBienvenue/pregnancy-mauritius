@@ -207,7 +207,7 @@ export default function MarketplacePage() {
         {!loading && (
           <Tabs defaultValue="gender-reveal">
             <AnimatedSection>
-              <TabsList className="mx-auto w-full overflow-x-auto flex-nowrap sm:w-auto">
+              <TabsList className="flex w-full justify-start overflow-x-auto flex-nowrap sm:mx-auto sm:w-auto sm:justify-center">
                 {(Object.keys(categoryMeta) as MarketCategory[]).map((cat) => {
                   const meta = categoryMeta[cat];
                   const Icon = meta.icon;

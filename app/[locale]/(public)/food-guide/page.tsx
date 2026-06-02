@@ -491,6 +491,7 @@ export default function FoodGuidePage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
+                type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t("searchPlaceholder")}
@@ -554,18 +555,18 @@ export default function FoodGuidePage() {
             }
           >
             <TabsList className="mx-auto mb-8 flex w-full max-w-lg">
-              <TabsTrigger value="all" className="flex-1 gap-1.5 text-sm">
+              <TabsTrigger value="all" className="flex-1 min-w-0 gap-1 text-xs sm:gap-1.5 sm:text-sm">
                 {t("all")} ({counts.all})
               </TabsTrigger>
-              <TabsTrigger value="safe" className="flex-1 gap-1.5 text-sm">
+              <TabsTrigger value="safe" className="flex-1 min-w-0 gap-1 text-xs sm:gap-1.5 sm:text-sm">
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
                 {t("safe")} ({counts.safe})
               </TabsTrigger>
-              <TabsTrigger value="caution" className="flex-1 gap-1.5 text-sm">
+              <TabsTrigger value="caution" className="flex-1 min-w-0 gap-1 text-xs sm:gap-1.5 sm:text-sm">
                 <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
                 {t("caution")} ({counts.caution})
               </TabsTrigger>
-              <TabsTrigger value="avoid" className="flex-1 gap-1.5 text-sm">
+              <TabsTrigger value="avoid" className="flex-1 min-w-0 gap-1 text-xs sm:gap-1.5 sm:text-sm">
                 <XCircle className="h-3.5 w-3.5 text-red-600" />
                 {t("avoid")} ({counts.avoid})
               </TabsTrigger>

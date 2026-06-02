@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Header } from "@/components/shared/header";
 import { Footer } from "@/components/shared/footer";
+import { BottomNav } from "@/components/shared/bottom-nav";
 
 export function PublicShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -19,6 +20,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <Footer />
+      <BottomNav />
     </>
   );
 }

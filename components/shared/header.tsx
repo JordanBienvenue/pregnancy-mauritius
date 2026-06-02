@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { NotificationBell } from "@/components/shared/notification-bell";
 import { LanguageSwitcher } from "./language-switcher";
 import { createClient } from "@/lib/supabase/client";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
@@ -239,6 +240,7 @@ export function Header() {
         {/* Right side */}
         <div className="flex items-center gap-1.5">
           <LanguageSwitcher />
+          {user && <NotificationBell />}
           <div className="hidden md:flex items-center gap-1.5">
             {user ? (
               <>

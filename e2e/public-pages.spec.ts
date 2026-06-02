@@ -20,10 +20,11 @@ test.describe('Home page', () => {
 
   test('has stats section', async ({ page }) => {
     await page.goto('/en');
-    // Stats section contains specific numbers
-    await expect(page.getByText('19,000+')).toBeVisible();
-    await expect(page.getByText('50+')).toBeVisible();
-    await expect(page.getByText('100%')).toBeVisible();
+    // Stats section contains specific numbers ("50+" also appears in the hero
+    // badge, so scope to the first match).
+    await expect(page.getByText('19,000+').first()).toBeVisible();
+    await expect(page.getByText('50+').first()).toBeVisible();
+    await expect(page.getByText('100%').first()).toBeVisible();
   });
 
   test('has sponsor section', async ({ page }) => {
@@ -44,8 +45,10 @@ test.describe('Emergency page', () => {
 
   test('has emergency phone numbers', async ({ page }) => {
     await page.goto('/en/emergency');
-    // Hospital phone numbers should be present
-    await expect(page.getByText('+230 212 3201')).toBeVisible();
+    // National emergency hotlines are shown by default (hospital landlines are
+    // inside expandable cards).
+    await expect(page.getByText('999').first()).toBeVisible();
+    await expect(page.getByText('115').first()).toBeVisible();
   });
 });
 
@@ -69,8 +72,8 @@ test.describe('Directory page', () => {
   test('has provider listings', async ({ page }) => {
     await page.goto('/en/directory');
     // Provider names should be visible
-    await expect(page.getByText('Dr. Anisha Doorgakant')).toBeVisible();
-    await expect(page.getByText('Marie-Claire Lamy')).toBeVisible();
+    await expect(page.getByText('Dr. Zeenat Aumeerally')).toBeVisible();
+    await expect(page.getByText('Dr. Guy Gnany')).toBeVisible();
   });
 
   test('has search functionality', async ({ page }) => {

@@ -213,19 +213,18 @@ export default function ForumPage() {
                   <Card
                     className={`group cursor-pointer border transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 ${cat.borderColor}`}
                   >
-                    <CardContent className="p-4">
-                      <motion.div
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                        className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${cat.color}`}
+                    <CardContent className="flex items-center gap-3 p-3">
+                      <div
+                        className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${cat.color}`}
                       >
                         <Icon className="h-5 w-5" />
-                      </motion.div>
-                      <h3 className="mt-3 font-semibold text-sm">
-                        {t(tKey as "pregnancy" | "postpartumCat" | "soloMothers" | "general")}
-                      </h3>
-                      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="font-medium">
-                          {loading ? "..." : categoryCounts[cat.id] ?? 0} {t("posts")}
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-semibold leading-tight">
+                          {t(tKey as "pregnancy" | "postpartumCat" | "soloMothers" | "general")}
+                        </h3>
+                        <span className="text-xs text-muted-foreground">
+                          {loading ? "…" : categoryCounts[cat.id] ?? 0} {t("posts")}
                         </span>
                       </div>
                     </CardContent>

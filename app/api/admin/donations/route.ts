@@ -17,7 +17,8 @@ export async function GET() {
 
   const { data, error } = await auth.supabase
     .from("donations")
-    .select("*, profiles(full_name)")
+    // disambiguate the profiles embed (donor_id + claimed_by both FK profiles)
+    .select("*, profiles!donor_id(full_name)")
     .order("created_at", { ascending: false });
 
   if (error) return apiError(error.message, 500);

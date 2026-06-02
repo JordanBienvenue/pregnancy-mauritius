@@ -2,29 +2,35 @@
 
 import { use, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
-import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Clock,
   MessageSquare,
-  Eye,
-  Heart,
+  ArrowBigUp,
   Share2,
   Flag,
   Send,
   Pin,
   Loader2,
+  Pencil,
+  Trash2,
+  X,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedSection } from "@/components/shared/animated-section";
+import { MarkdownContent } from "@/components/forum/markdown-content";
+import { ImageUploadButton } from "@/components/forum/image-upload-button";
+import { CommentNode, type ForumReply } from "@/components/forum/comment-node";
 
 const categoryBadgeColor: Record<string, string> = {
   pregnancy: "bg-pink-100 text-pink-700 border-pink-200",
@@ -51,17 +57,7 @@ interface ForumPostData {
   reply_count: number;
   like_count: number;
   created_at: string;
-  profiles: { full_name: string } | null;
-}
-
-interface ForumReply {
-  id: string;
-  post_id: string;
-  user_id: string;
-  content: string;
-  is_anonymous: boolean;
-  like_count: number;
-  created_at: string;
+  edited_at: string | null;
   profiles: { full_name: string } | null;
 }
 
@@ -86,6 +82,7 @@ export default function ForumThreadPage({
   const { category, postId } = use(params);
   const t = useTranslations("forum");
   const locale = useLocale();
+  const router = useRouter();
 
   const [post, setPost] = useState<ForumPostData | null>(null);
   const [replies, setReplies] = useState<ForumReply[]>([]);
@@ -96,6 +93,36 @@ export default function ForumThreadPage({
   const [userId, setUserId] = useState<string | null>(null);
   const [hasLiked, setHasLiked] = useState(false);
   const [optimisticLikeCount, setOptimisticLikeCount] = useState(0);
+  const [likedReplyIds, setLikedReplyIds] = useState<Set<string>>(new Set());
+
+  // Author edit/delete state
+  const [editingPost, setEditingPost] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [savingPost, setSavingPost] = useState(false);
+
+  // Which reply ids the current user has liked (refreshed alongside replies).
+  const refreshLikedReplies = useCallback(async (replyList: ForumReply[]) => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user || replyList.length === 0) {
+      setLikedReplyIds(new Set());
+      return;
+    }
+    const { data } = await supabase
+      .from("forum_reply_likes")
+      .select("reply_id")
+      .eq("user_id", user.id)
+      .in(
+        "reply_id",
+        replyList.map((r) => r.id)
+      );
+    setLikedReplyIds(
+      new Set((data ?? []).map((d: { reply_id: string }) => d.reply_id))
+    );
+  }, []);
 
   const fetchPost = useCallback(async () => {
     const supabase = createClient();
@@ -122,6 +149,7 @@ export default function ForumThreadPage({
 
     if (repliesResult.data) {
       setReplies(repliesResult.data as ForumReply[]);
+      refreshLikedReplies(repliesResult.data as ForumReply[]);
     }
 
     const currentUserId = userResult.data?.user?.id ?? null;
@@ -139,7 +167,7 @@ export default function ForumThreadPage({
     }
 
     setLoading(false);
-  }, [postId]);
+  }, [postId, refreshLikedReplies]);
 
   useEffect(() => {
     fetchPost();
@@ -161,13 +189,14 @@ export default function ForumThreadPage({
     ]);
     if (repliesResult.data) {
       setReplies(repliesResult.data as ForumReply[]);
+      refreshLikedReplies(repliesResult.data as ForumReply[]);
     }
     if (postResult.data) {
       const postData = postResult.data as ForumPostData;
       setPost(postData);
       setOptimisticLikeCount(postData.like_count ?? 0);
     }
-  }, [postId]);
+  }, [postId, refreshLikedReplies]);
 
   // Subscribe to realtime changes so replies from other users appear live.
   useEffect(() => {
@@ -205,37 +234,135 @@ export default function ForumThreadPage({
     };
   }, [postId, refreshReplies]);
 
+  // Insert a reply (top-level when parentId is null, nested otherwise).
+  // reply_count is maintained by the sync_forum_post_reply_count trigger.
+  const submitReply = useCallback(
+    async (parentId: string | null, text: string, anon = false) => {
+      if (!text.trim() || !userId) return false;
+      const supabase = createClient();
+      const { error } = await supabase.from("forum_replies").insert({
+        post_id: postId,
+        user_id: userId,
+        content: text.trim(),
+        is_anonymous: anon,
+        parent_reply_id: parentId,
+      });
+      if (!error) await refreshReplies();
+      return !error;
+    },
+    [postId, userId, refreshReplies]
+  );
+
   const handleReply = async () => {
-    if (!replyContent.trim() || !userId) return;
-
     setSubmittingReply(true);
-    const supabase = createClient();
-
-    const { error } = await supabase.from("forum_replies").insert({
-      post_id: postId,
-      user_id: userId,
-      content: replyContent.trim(),
-      is_anonymous: replyAnonymous,
-    });
-
-    if (!error) {
-      // Update reply_count on the post
-      if (post) {
-        await supabase
-          .from("forum_posts")
-          .update({ reply_count: (post.reply_count ?? 0) + 1 })
-          .eq("id", postId);
-      }
-
+    const ok = await submitReply(null, replyContent, replyAnonymous);
+    if (ok) {
       setReplyContent("");
       setReplyAnonymous(false);
-
-      // Re-fetch replies and post (realtime will also refresh other viewers)
-      await refreshReplies();
     }
-
     setSubmittingReply(false);
   };
+
+  const handleReplyLike = async (reply: ForumReply) => {
+    if (!userId) return;
+    const supabase = createClient();
+    const liked = likedReplyIds.has(reply.id);
+
+    // Optimistic toggle; like_count is maintained by a DB trigger and
+    // reconciled live via the forum_replies realtime subscription.
+    setLikedReplyIds((prev) => {
+      const next = new Set(prev);
+      if (liked) next.delete(reply.id);
+      else next.add(reply.id);
+      return next;
+    });
+    setReplies((prev) =>
+      prev.map((r) =>
+        r.id === reply.id
+          ? { ...r, like_count: Math.max(0, (r.like_count ?? 0) + (liked ? -1 : 1)) }
+          : r
+      )
+    );
+
+    if (liked) {
+      await supabase
+        .from("forum_reply_likes")
+        .delete()
+        .eq("reply_id", reply.id)
+        .eq("user_id", userId);
+    } else {
+      await supabase
+        .from("forum_reply_likes")
+        .insert({ reply_id: reply.id, user_id: userId });
+    }
+  };
+
+  const startEditPost = () => {
+    if (!post) return;
+    setEditTitle(post.title);
+    setEditContent(post.content);
+    setEditingPost(true);
+  };
+
+  const handlePostEditSave = async () => {
+    if (!post || !editTitle.trim() || !editContent.trim()) return;
+    setSavingPost(true);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("forum_posts")
+      .update({
+        title: editTitle.trim(),
+        content: editContent.trim(),
+        edited_at: new Date().toISOString(),
+      })
+      .eq("id", postId);
+    if (!error) {
+      setEditingPost(false);
+      await refreshReplies(); // also refetches the post
+    }
+    setSavingPost(false);
+  };
+
+  const handlePostDelete = async () => {
+    if (!post || userId !== post.user_id) return;
+    if (!window.confirm(t("deleteConfirm"))) return;
+    const supabase = createClient();
+    const { error } = await supabase.from("forum_posts").delete().eq("id", postId);
+    if (!error) router.push(`/${locale}/forum/${category}`);
+  };
+
+  const handleReplyEditSave = async (reply: ForumReply, text: string) => {
+    if (!text.trim()) return false;
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("forum_replies")
+      .update({ content: text.trim(), edited_at: new Date().toISOString() })
+      .eq("id", reply.id);
+    if (!error) await refreshReplies();
+    return !error;
+  };
+
+  const handleReplyDelete = async (reply: ForumReply) => {
+    if (userId !== reply.user_id) return;
+    if (!window.confirm(t("deleteConfirm"))) return;
+    const supabase = createClient();
+    // reply_count is maintained by the sync_forum_post_reply_count trigger.
+    await supabase.from("forum_replies").delete().eq("id", reply.id);
+    await refreshReplies();
+  };
+
+  // Group replies by parent for the threaded tree.
+  const childrenMap = new Map<string, ForumReply[]>();
+  const topLevel: ForumReply[] = [];
+  for (const r of replies) {
+    if (r.parent_reply_id) {
+      const arr = childrenMap.get(r.parent_reply_id) ?? [];
+      arr.push(r);
+      childrenMap.set(r.parent_reply_id, arr);
+    } else {
+      topLevel.push(r);
+    }
+  }
 
   const handleLike = async () => {
     if (!userId) return;
@@ -403,19 +530,66 @@ export default function ForumThreadPage({
                 </div>
               </div>
 
-              {/* Post title */}
-              <div className="px-5 pt-4">
-                <h1 className="text-xl font-bold sm:text-2xl">
-                  {post.title}
-                </h1>
-              </div>
-
-              {/* Post content */}
-              <div className="px-5 pt-3 pb-4">
-                <div className="prose prose-sm max-w-none text-foreground/90 whitespace-pre-line leading-relaxed">
-                  {post.content}
+              {editingPost ? (
+                /* Edit mode */
+                <div className="px-5 pt-4 pb-4 space-y-3">
+                  <Input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    maxLength={200}
+                    aria-label={t("postTitle")}
+                  />
+                  <Textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="min-h-32 resize-none"
+                    aria-label={t("postContent")}
+                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      className="gap-1.5 bg-primary hover:bg-brand-pink-dark"
+                      onClick={handlePostEditSave}
+                      disabled={savingPost || !editTitle.trim() || !editContent.trim()}
+                    >
+                      {savingPost ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                      {t("save")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-1.5"
+                      onClick={() => setEditingPost(false)}
+                    >
+                      <X className="h-4 w-4" />
+                      {t("cancel")}
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  {/* Post title */}
+                  <div className="px-5 pt-4">
+                    <h1 className="text-xl font-bold sm:text-2xl">
+                      {post.title}
+                    </h1>
+                  </div>
+
+                  {/* Post content */}
+                  <div className="px-5 pt-3 pb-4">
+                    <MarkdownContent>{post.content}</MarkdownContent>
+                    {post.edited_at && (
+                      <span className="text-xs text-muted-foreground italic">
+                        ({t("edited")})
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* Post actions */}
               <div className="flex items-center gap-1 px-5 pb-4">
@@ -424,13 +598,13 @@ export default function ForumThreadPage({
                   size="sm"
                   data-testid="post-like-button"
                   aria-pressed={hasLiked}
-                  className={`gap-1.5 ${hasLiked ? "text-pink-500" : "text-muted-foreground"}`}
+                  className={`gap-1.5 rounded-full ${hasLiked ? "text-primary" : "text-muted-foreground"}`}
                   onClick={handleLike}
                 >
-                  <Heart
-                    className={`h-4 w-4 ${hasLiked ? "fill-pink-500" : ""}`}
+                  <ArrowBigUp
+                    className={`h-5 w-5 ${hasLiked ? "fill-primary" : ""}`}
                   />
-                  <span className="text-xs" data-testid="post-like-count">
+                  <span className="text-xs font-semibold" data-testid="post-like-count">
                     {optimisticLikeCount}
                   </span>
                 </Button>
@@ -452,6 +626,30 @@ export default function ForumThreadPage({
                   <Flag className="h-4 w-4" />
                   <span className="text-xs">{t("report")}</span>
                 </Button>
+                {userId === post.user_id && !editingPost && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      data-testid="post-edit-button"
+                      className="gap-1.5 text-muted-foreground"
+                      onClick={startEditPost}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      <span className="text-xs">{t("edit")}</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      data-testid="post-delete-button"
+                      className="gap-1.5 text-muted-foreground hover:text-destructive"
+                      onClick={handlePostDelete}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="text-xs">{t("delete")}</span>
+                    </Button>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -467,58 +665,22 @@ export default function ForumThreadPage({
           </div>
         </AnimatedSection>
 
-        {/* Replies */}
-        <div className="mt-4 space-y-3">
-          {replies.map((reply, index) => (
-            <motion.div
+        {/* Threaded replies (Reddit-style) */}
+        <div className="mt-4">
+          {topLevel.map((reply) => (
+            <CommentNode
               key={reply.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.4,
-                delay: 0.1 + 0.08 * index,
-                ease: [0.21, 0.47, 0.32, 0.98],
-              }}
-            >
-              <Card className="border-border/50">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <Avatar>
-                      <AvatarFallback>
-                        {reply.is_anonymous
-                          ? "?"
-                          : (reply.profiles?.full_name?.[0] ?? "?")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">
-                          {reply.is_anonymous
-                            ? t("anonymous")
-                            : reply.profiles?.full_name ?? t("anonymous")}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {timeAgo(reply.created_at)}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm text-foreground/90 leading-relaxed">
-                        {reply.content}
-                      </p>
-                      <div className="mt-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gap-1.5 text-muted-foreground h-7 px-2"
-                        >
-                          <Heart className="h-3.5 w-3.5" />
-                          <span className="text-xs">{reply.like_count ?? 0}</span>
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+              reply={reply}
+              childrenMap={childrenMap}
+              depth={0}
+              userId={userId}
+              likedReplyIds={likedReplyIds}
+              onLike={handleReplyLike}
+              onSubmitReply={(parentId, text) => submitReply(parentId, text)}
+              onSaveEdit={handleReplyEditSave}
+              onDelete={handleReplyDelete}
+              timeAgo={timeAgo}
+            />
           ))}
         </div>
 
@@ -533,16 +695,21 @@ export default function ForumThreadPage({
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
               />
-              <div className="mt-3 flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded border-input"
-                    checked={replyAnonymous}
-                    onChange={(e) => setReplyAnonymous(e.target.checked)}
+              <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="rounded border-input"
+                      checked={replyAnonymous}
+                      onChange={(e) => setReplyAnonymous(e.target.checked)}
+                    />
+                    {t("postAnonymously")}
+                  </label>
+                  <ImageUploadButton
+                    onUploaded={(md) => setReplyContent((c) => c + md)}
                   />
-                  {t("postAnonymously")}
-                </label>
+                </div>
                 <Button
                   className="gap-2 bg-primary hover:bg-brand-pink-dark"
                   onClick={handleReply}

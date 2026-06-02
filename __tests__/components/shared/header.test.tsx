@@ -63,6 +63,11 @@ vi.mock("@/components/shared/language-switcher", () => ({
   LanguageSwitcher: () => <div data-testid="language-switcher">LanguageSwitcher</div>,
 }));
 
+// Mock NotificationBell (its realtime/data behaviour is covered by e2e)
+vi.mock("@/components/shared/notification-bell", () => ({
+  NotificationBell: () => <div data-testid="notification-bell" />,
+}));
+
 // Mock the Sheet components from base-ui (complex portals)
 vi.mock("@/components/ui/sheet", () => {
   const React = require("react");
