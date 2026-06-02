@@ -37,6 +37,11 @@
     "services": "Services",
     "contact": "Contact"
   },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "empty": "No notifications yet."
+  },
   "home": {
     "liveTitle": "Happening on Manman Moris",
     "liveSubtitle": "Real discussions, donations, and verified providers from our community.",

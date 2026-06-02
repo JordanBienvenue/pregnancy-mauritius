@@ -37,6 +37,11 @@
     "services": "Services",
     "contact": "Contact"
   },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "empty": "Aucune notification pour l'instant."
+  },
   "home": {
     "liveTitle": "En ce moment sur Manman Moris",
     "liveSubtitle": "Discussions, dons et prestataires verifies de notre communaute.",

@@ -37,6 +37,11 @@
     "services": "Servis",
     "contact": "Kontak"
   },
+  "notifications": {
+    "title": "Notifikasion",
+    "markAllRead": "Marke tou kouma li",
+    "empty": "Pena notifikasion ankor."
+  },
   "home": {
     "liveTitle": "Seki pe pase lor Manman Moris",
     "liveSubtitle": "Bann diskision, don ek prestater verifie dan nou kominote.",
