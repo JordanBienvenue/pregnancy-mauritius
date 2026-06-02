@@ -38,6 +38,18 @@
     "contact": "Contact"
   },
   "home": {
+    "liveTitle": "Happening on Manman Moris",
+    "liveSubtitle": "Real discussions, donations, and verified providers from our community.",
+    "soloTitle": "Solo mothers initiative",
+    "soloDesc": "A dedicated, supportive space for mothers raising their little ones on their own.",
+    "recentDiscussions": "Recent discussions",
+    "availableDonations": "Available to give",
+    "featuredProviders": "Verified providers",
+    "seeAll": "See all",
+    "nothingYet": "Nothing here yet — be the first.",
+    "repliesShort": "replies",
+    "joinForum": "Join the community",
+    "emergencyShortcut": "Emergency numbers",
     "heroTitle": "Every Mauritian mum deserves support",
     "heroSubtitle": "The first all-in-one pregnancy and postpartum platform built for Mauritius. In English, French, and Kreol Morisien.",
     "heroCta": "Start your journey",

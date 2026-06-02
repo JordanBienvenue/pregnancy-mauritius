@@ -38,6 +38,18 @@
     "contact": "Contact"
   },
   "home": {
+    "liveTitle": "En ce moment sur Manman Moris",
+    "liveSubtitle": "Discussions, dons et prestataires verifies de notre communaute.",
+    "soloTitle": "Initiative meres solos",
+    "soloDesc": "Un espace dedie et bienveillant pour les meres qui elevent seules leurs petits.",
+    "recentDiscussions": "Discussions recentes",
+    "availableDonations": "A donner",
+    "featuredProviders": "Prestataires verifies",
+    "seeAll": "Voir tout",
+    "nothingYet": "Rien ici pour l'instant — soyez la premiere.",
+    "repliesShort": "reponses",
+    "joinForum": "Rejoindre la communaute",
+    "emergencyShortcut": "Numeros d'urgence",
     "heroTitle": "Chaque maman mauricienne merite du soutien",
     "heroSubtitle": "La premiere plateforme de grossesse et de post-partum concue pour Maurice. En anglais, francais et kreol morisien.",
     "heroCta": "Commencez votre parcours",
