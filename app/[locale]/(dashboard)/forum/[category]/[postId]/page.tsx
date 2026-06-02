@@ -5,12 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
-import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Clock,
   MessageSquare,
-  Heart,
+  ArrowBigUp,
   Share2,
   Flag,
   Send,
@@ -31,6 +30,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedSection } from "@/components/shared/animated-section";
 import { MarkdownContent } from "@/components/forum/markdown-content";
 import { ImageUploadButton } from "@/components/forum/image-upload-button";
+import { CommentNode, type ForumReply } from "@/components/forum/comment-node";
 
 const categoryBadgeColor: Record<string, string> = {
   pregnancy: "bg-pink-100 text-pink-700 border-pink-200",
@@ -55,18 +55,6 @@ interface ForumPostData {
   is_anonymous: boolean;
   is_pinned: boolean;
   reply_count: number;
-  like_count: number;
-  created_at: string;
-  edited_at: string | null;
-  profiles: { full_name: string } | null;
-}
-
-interface ForumReply {
-  id: string;
-  post_id: string;
-  user_id: string;
-  content: string;
-  is_anonymous: boolean;
   like_count: number;
   created_at: string;
   edited_at: string | null;
@@ -112,9 +100,6 @@ export default function ForumThreadPage({
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [savingPost, setSavingPost] = useState(false);
-  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
-  const [editReplyContent, setEditReplyContent] = useState("");
-  const [savingReply, setSavingReply] = useState(false);
 
   // Which reply ids the current user has liked (refreshed alongside replies).
   const refreshLikedReplies = useCallback(async (replyList: ForumReply[]) => {
@@ -249,28 +234,32 @@ export default function ForumThreadPage({
     };
   }, [postId, refreshReplies]);
 
+  // Insert a reply (top-level when parentId is null, nested otherwise).
+  // reply_count is maintained by the sync_forum_post_reply_count trigger.
+  const submitReply = useCallback(
+    async (parentId: string | null, text: string, anon = false) => {
+      if (!text.trim() || !userId) return false;
+      const supabase = createClient();
+      const { error } = await supabase.from("forum_replies").insert({
+        post_id: postId,
+        user_id: userId,
+        content: text.trim(),
+        is_anonymous: anon,
+        parent_reply_id: parentId,
+      });
+      if (!error) await refreshReplies();
+      return !error;
+    },
+    [postId, userId, refreshReplies]
+  );
+
   const handleReply = async () => {
-    if (!replyContent.trim() || !userId) return;
-
     setSubmittingReply(true);
-    const supabase = createClient();
-
-    const { error } = await supabase.from("forum_replies").insert({
-      post_id: postId,
-      user_id: userId,
-      content: replyContent.trim(),
-      is_anonymous: replyAnonymous,
-    });
-
-    if (!error) {
-      // reply_count is maintained by the sync_forum_post_reply_count trigger.
+    const ok = await submitReply(null, replyContent, replyAnonymous);
+    if (ok) {
       setReplyContent("");
       setReplyAnonymous(false);
-
-      // Re-fetch replies and post (realtime will also refresh other viewers)
-      await refreshReplies();
     }
-
     setSubmittingReply(false);
   };
 
@@ -342,22 +331,15 @@ export default function ForumThreadPage({
     if (!error) router.push(`/${locale}/forum/${category}`);
   };
 
-  const handleReplyEditSave = async (reply: ForumReply) => {
-    if (!editReplyContent.trim()) return;
-    setSavingReply(true);
+  const handleReplyEditSave = async (reply: ForumReply, text: string) => {
+    if (!text.trim()) return false;
     const supabase = createClient();
     const { error } = await supabase
       .from("forum_replies")
-      .update({
-        content: editReplyContent.trim(),
-        edited_at: new Date().toISOString(),
-      })
+      .update({ content: text.trim(), edited_at: new Date().toISOString() })
       .eq("id", reply.id);
-    if (!error) {
-      setEditingReplyId(null);
-      await refreshReplies();
-    }
-    setSavingReply(false);
+    if (!error) await refreshReplies();
+    return !error;
   };
 
   const handleReplyDelete = async (reply: ForumReply) => {
@@ -368,6 +350,19 @@ export default function ForumThreadPage({
     await supabase.from("forum_replies").delete().eq("id", reply.id);
     await refreshReplies();
   };
+
+  // Group replies by parent for the threaded tree.
+  const childrenMap = new Map<string, ForumReply[]>();
+  const topLevel: ForumReply[] = [];
+  for (const r of replies) {
+    if (r.parent_reply_id) {
+      const arr = childrenMap.get(r.parent_reply_id) ?? [];
+      arr.push(r);
+      childrenMap.set(r.parent_reply_id, arr);
+    } else {
+      topLevel.push(r);
+    }
+  }
 
   const handleLike = async () => {
     if (!userId) return;
@@ -603,13 +598,13 @@ export default function ForumThreadPage({
                   size="sm"
                   data-testid="post-like-button"
                   aria-pressed={hasLiked}
-                  className={`gap-1.5 ${hasLiked ? "text-pink-500" : "text-muted-foreground"}`}
+                  className={`gap-1.5 rounded-full ${hasLiked ? "text-primary" : "text-muted-foreground"}`}
                   onClick={handleLike}
                 >
-                  <Heart
-                    className={`h-4 w-4 ${hasLiked ? "fill-pink-500" : ""}`}
+                  <ArrowBigUp
+                    className={`h-5 w-5 ${hasLiked ? "fill-primary" : ""}`}
                   />
-                  <span className="text-xs" data-testid="post-like-count">
+                  <span className="text-xs font-semibold" data-testid="post-like-count">
                     {optimisticLikeCount}
                   </span>
                 </Button>
@@ -670,137 +665,22 @@ export default function ForumThreadPage({
           </div>
         </AnimatedSection>
 
-        {/* Replies */}
-        <div className="mt-4 space-y-3">
-          {replies.map((reply, index) => (
-            <motion.div
+        {/* Threaded replies (Reddit-style) */}
+        <div className="mt-4">
+          {topLevel.map((reply) => (
+            <CommentNode
               key={reply.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.4,
-                delay: 0.1 + 0.08 * index,
-                ease: [0.21, 0.47, 0.32, 0.98],
-              }}
-            >
-              <Card className="border-border/50">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <Avatar>
-                      <AvatarFallback>
-                        {reply.is_anonymous
-                          ? "?"
-                          : (reply.profiles?.full_name?.[0] ?? "?")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">
-                          {reply.is_anonymous
-                            ? t("anonymous")
-                            : reply.profiles?.full_name ?? t("anonymous")}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {timeAgo(reply.created_at)}
-                          {reply.edited_at ? ` · ${t("edited")}` : ""}
-                        </span>
-                      </div>
-
-                      {editingReplyId === reply.id ? (
-                        <div className="mt-2 space-y-2">
-                          <Textarea
-                            value={editReplyContent}
-                            onChange={(e) => setEditReplyContent(e.target.value)}
-                            className="min-h-20 resize-none"
-                            aria-label={t("writeReply")}
-                          />
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              className="gap-1.5 h-7 bg-primary hover:bg-brand-pink-dark"
-                              onClick={() => handleReplyEditSave(reply)}
-                              disabled={savingReply || !editReplyContent.trim()}
-                            >
-                              {savingReply ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Check className="h-3.5 w-3.5" />
-                              )}
-                              {t("save")}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="gap-1.5 h-7"
-                              onClick={() => setEditingReplyId(null)}
-                            >
-                              <X className="h-3.5 w-3.5" />
-                              {t("cancel")}
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="mt-2 text-sm">
-                          <MarkdownContent>{reply.content}</MarkdownContent>
-                        </div>
-                      )}
-
-                      <div className="mt-2 flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          data-testid="reply-like-button"
-                          aria-pressed={likedReplyIds.has(reply.id)}
-                          className={`gap-1.5 h-7 px-2 ${
-                            likedReplyIds.has(reply.id)
-                              ? "text-pink-500"
-                              : "text-muted-foreground"
-                          }`}
-                          onClick={() => handleReplyLike(reply)}
-                        >
-                          <Heart
-                            className={`h-3.5 w-3.5 ${
-                              likedReplyIds.has(reply.id) ? "fill-pink-500" : ""
-                            }`}
-                          />
-                          <span className="text-xs" data-testid="reply-like-count">
-                            {reply.like_count ?? 0}
-                          </span>
-                        </Button>
-                        {userId === reply.user_id &&
-                          editingReplyId !== reply.id && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                data-testid="reply-edit-button"
-                                className="gap-1.5 h-7 px-2 text-muted-foreground"
-                                onClick={() => {
-                                  setEditingReplyId(reply.id);
-                                  setEditReplyContent(reply.content);
-                                }}
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                                <span className="text-xs">{t("edit")}</span>
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                data-testid="reply-delete-button"
-                                className="gap-1.5 h-7 px-2 text-muted-foreground hover:text-destructive"
-                                onClick={() => handleReplyDelete(reply)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                                <span className="text-xs">{t("delete")}</span>
-                              </Button>
-                            </>
-                          )}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+              reply={reply}
+              childrenMap={childrenMap}
+              depth={0}
+              userId={userId}
+              likedReplyIds={likedReplyIds}
+              onLike={handleReplyLike}
+              onSubmitReply={(parentId, text) => submitReply(parentId, text)}
+              onSaveEdit={handleReplyEditSave}
+              onDelete={handleReplyDelete}
+              timeAgo={timeAgo}
+            />
           ))}
         </div>
 

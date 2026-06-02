@@ -6,15 +6,12 @@ import { createClient } from "@/lib/supabase/client";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
+  DialogClose,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectTrigger,
@@ -22,7 +19,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { ImageUploadButton } from "@/components/forum/image-upload-button";
 
 interface CreatePostDialogProps {
@@ -54,7 +51,7 @@ export function CreatePostDialog({
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-    if (!title.trim() || !content.trim()) return;
+    if (!title.trim()) return;
 
     setIsSubmitting(true);
     setError(null);
@@ -87,7 +84,6 @@ export function CreatePostDialog({
         return;
       }
 
-      // Reset form
       setTitle("");
       setContent("");
       setIsAnonymous(false);
@@ -104,68 +100,78 @@ export function CreatePostDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{t("createPost")}</DialogTitle>
-          <DialogDescription className="sr-only">
-            {t("createPost")}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent
+        showCloseButton={false}
+        className="top-0 left-0 flex h-[100dvh] w-screen max-w-full translate-x-0 translate-y-0 flex-col gap-0 rounded-none p-0 ring-0 sm:top-1/2 sm:left-1/2 sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:ring-1"
+      >
+        <DialogTitle className="sr-only">{t("createPost")}</DialogTitle>
 
-        <div className="space-y-4">
-          {/* Category select */}
-          <div className="space-y-2">
-            <Label htmlFor="category">{t("categories")}</Label>
-            <Select
-              value={category}
-              onValueChange={(val) => setCategory(val as string)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {categoryOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {t(opt.labelKey)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Reddit-style top bar: close (left) + submit (right) */}
+        <div className="flex items-center justify-between border-b px-3 py-2.5">
+          <DialogClose
+            render={<Button variant="ghost" size="icon-sm" aria-label={t("cancel")} />}
+          >
+            <X className="h-5 w-5" />
+          </DialogClose>
+          <Button
+            size="sm"
+            className="rounded-full bg-primary px-5 hover:bg-brand-pink-dark"
+            onClick={handleSubmit}
+            disabled={isSubmitting || !title.trim()}
+          >
+            {isSubmitting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+            {t("submitPost")}
+          </Button>
+        </div>
+
+        <div className="flex-1 space-y-3 overflow-y-auto p-4">
+          {/* Community pill */}
+          <Select
+            value={category}
+            onValueChange={(val) => setCategory(val as string)}
+          >
+            <SelectTrigger className="h-9 w-auto gap-2 rounded-full border-border bg-muted/60 px-4 text-sm font-medium">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {categoryOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {t(opt.labelKey)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Title (big, borderless) */}
+          <Input
+            id="post-title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={t("postTitle")}
+            maxLength={200}
+            className="border-0 bg-transparent px-0 text-xl font-semibold shadow-none focus-visible:ring-0 dark:bg-transparent"
+          />
+
+          {/* Body (optional, borderless) */}
+          <Textarea
+            id="post-content"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder={t("postPlaceholder")}
+            className="min-h-40 resize-none border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 dark:bg-transparent"
+          />
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+
+        {/* Bottom toolbar */}
+        <div className="flex items-center justify-between gap-3 border-t px-4 py-3">
+          <div className="flex items-center gap-3">
+            <ImageUploadButton onUploaded={(md) => setContent((c) => c + md)} />
+            <span className="text-xs text-muted-foreground">
+              {t("markdownHint")}
+            </span>
           </div>
-
-          {/* Title */}
-          <div className="space-y-2">
-            <Label htmlFor="post-title">{t("postTitle")}</Label>
-            <Input
-              id="post-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={t("postTitle")}
-              maxLength={200}
-            />
-          </div>
-
-          {/* Content */}
-          <div className="space-y-2">
-            <Label htmlFor="post-content">{t("postContent")}</Label>
-            <Textarea
-              id="post-content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder={t("postPlaceholder")}
-              className="min-h-32 resize-none"
-            />
-            <div className="flex items-center justify-between">
-              <ImageUploadButton
-                onUploaded={(md) => setContent((c) => c + md)}
-              />
-              <span className="text-xs text-muted-foreground">
-                {t("markdownHint")}
-              </span>
-            </div>
-          </div>
-
-          {/* Anonymous toggle */}
           <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
             <input
               type="checkbox"
@@ -175,22 +181,7 @@ export function CreatePostDialog({
             />
             {t("anonymous")}
           </label>
-
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
         </div>
-
-        <DialogFooter>
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting || !title.trim() || !content.trim()}
-            className="gap-2 bg-primary hover:bg-brand-pink-dark"
-          >
-            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {t("submitPost")}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
