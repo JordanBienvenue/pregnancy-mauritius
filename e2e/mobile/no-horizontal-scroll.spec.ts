@@ -17,6 +17,7 @@ const PAGES = [
   "/en/forum/general",
   "/en/postpartum",
   "/en/profile",
+  "/en/marketplace",
 ];
 
 test("no page has horizontal scroll on mobile", async ({ page }) => {
@@ -37,4 +38,17 @@ test("no page has horizontal scroll on mobile", async ({ page }) => {
   }
 
   expect(offenders, `Pages with horizontal scroll:\n${offenders.join("\n")}`).toEqual([]);
+});
+
+test("marketplace category tabs are not clipped on the left", async ({
+  page,
+}) => {
+  await loginAs(page, TEST_USERS.user, TEST_PASSWORD, "en");
+  await page.goto("/en/marketplace");
+  await page.waitForTimeout(800);
+  // A horizontally-scrollable tab strip must start at/after the left edge, not
+  // be centred-and-clipped (which hides the first category).
+  const box = await page.getByRole("tab").first().boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
 });
