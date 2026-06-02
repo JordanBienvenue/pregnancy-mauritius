@@ -241,8 +241,8 @@ export default function ForumCategoryPage({
         </div>
 
         {/* Controls */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant={sortBy === "newest" ? "default" : "outline"}
               size="sm"
