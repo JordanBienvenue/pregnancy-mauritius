@@ -23,6 +23,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { ImageUploadButton } from "@/components/forum/image-upload-button";
 
 interface CreatePostDialogProps {
   open: boolean;
@@ -154,6 +155,14 @@ export function CreatePostDialog({
               placeholder={t("postPlaceholder")}
               className="min-h-32 resize-none"
             />
+            <div className="flex items-center justify-between">
+              <ImageUploadButton
+                onUploaded={(md) => setContent((c) => c + md)}
+              />
+              <span className="text-xs text-muted-foreground">
+                {t("markdownHint")}
+              </span>
+            </div>
           </div>
 
           {/* Anonymous toggle */}

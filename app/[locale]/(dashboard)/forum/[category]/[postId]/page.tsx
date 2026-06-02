@@ -29,6 +29,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedSection } from "@/components/shared/animated-section";
+import { MarkdownContent } from "@/components/forum/markdown-content";
+import { ImageUploadButton } from "@/components/forum/image-upload-button";
 
 const categoryBadgeColor: Record<string, string> = {
   pregnancy: "bg-pink-100 text-pink-700 border-pink-200",
@@ -584,9 +586,7 @@ export default function ForumThreadPage({
 
                   {/* Post content */}
                   <div className="px-5 pt-3 pb-4">
-                    <div className="prose prose-sm max-w-none text-foreground/90 whitespace-pre-line leading-relaxed">
-                      {post.content}
-                    </div>
+                    <MarkdownContent>{post.content}</MarkdownContent>
                     {post.edited_at && (
                       <span className="text-xs text-muted-foreground italic">
                         ({t("edited")})
@@ -740,9 +740,9 @@ export default function ForumThreadPage({
                           </div>
                         </div>
                       ) : (
-                        <p className="mt-2 text-sm text-foreground/90 leading-relaxed whitespace-pre-line">
-                          {reply.content}
-                        </p>
+                        <div className="mt-2 text-sm">
+                          <MarkdownContent>{reply.content}</MarkdownContent>
+                        </div>
                       )}
 
                       <div className="mt-2 flex items-center gap-1">
@@ -815,16 +815,21 @@ export default function ForumThreadPage({
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
               />
-              <div className="mt-3 flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded border-input"
-                    checked={replyAnonymous}
-                    onChange={(e) => setReplyAnonymous(e.target.checked)}
+              <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="rounded border-input"
+                      checked={replyAnonymous}
+                      onChange={(e) => setReplyAnonymous(e.target.checked)}
+                    />
+                    {t("postAnonymously")}
+                  </label>
+                  <ImageUploadButton
+                    onUploaded={(md) => setReplyContent((c) => c + md)}
                   />
-                  {t("postAnonymously")}
-                </label>
+                </div>
                 <Button
                   className="gap-2 bg-primary hover:bg-brand-pink-dark"
                   onClick={handleReply}
